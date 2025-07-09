@@ -1,0 +1,84 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+
+# Flutter web
+lib/generated_plugin_registrant.dart
+
+# Flutter iOS
+**/ios/Runner/GeneratedPluginRegistrant.*
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Flutter/App.framework
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/ServiceDefinitions.json
+**/ios/Runner/GoogleService-Info.plist
+
+# Flutter Android
+**/android/app/src/main/kotlin/**/GeneratedPluginRegistrant.kt
+**/android/local.properties
+**/android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+**/android/app/google-services.json
+**/android/key.properties
+
+# Coverage
+coverage/
+
+# Additional Flutter/Dart ignores
+*.lock
+pubspec.lock
+.packages
+.pub/
+
+# FVM (Flutter Version Management)
+.fvm/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Firebase
+firebase_options.dart
+.firebase/
+
+# Test coverage
+lcov.info
+
+# Analysis
+analysis_options.yaml.backup
+
+# Exceptions to above rules
+!/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages

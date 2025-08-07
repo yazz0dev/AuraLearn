@@ -7,7 +7,7 @@
 
 ## Abstract
 
-This project aims to develop **AuraLearn**, a personalized adaptive learning platform designed to enhance student mastery of curriculum-based subjects. Leveraging the advanced capabilities of **Gemini 1.5 Flash**, AuraLearn will provide intelligent, context-aware tutoring and dynamic learning path adjustments.
+This project aims to develop **AuraLearn**, a personalized adaptive learning platform designed to enhance student mastery of curriculum-based subjects. Leveraging the advanced capabilities of **Gemini 2.5 Flash**, AuraLearn will provide intelligent, context-aware tutoring and dynamic learning path adjustments.
 
 The platform will feature three key user roles:
 

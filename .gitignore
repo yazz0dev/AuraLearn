@@ -11,6 +11,10 @@
 .svn/
 .swiftpm/
 migrate_working_dir/
+.vscode
+Agents.md
+.metadata
+analysis_options.yaml
 
 # IntelliJ related
 *.iml

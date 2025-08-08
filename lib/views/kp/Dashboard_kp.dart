@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 class DashboardKP extends StatelessWidget {
+  const DashboardKP({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

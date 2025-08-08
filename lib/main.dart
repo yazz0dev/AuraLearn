@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'views/Landing.dart';
 
 void main() {
   runApp(const AuraLearnApp());
@@ -11,9 +12,12 @@ class AuraLearnApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'AuraLearn',
-      home: Scaffold(
-        body: Center(child: Text('AuraLearn Shell App')),
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        fontFamily: 'Roboto',
       ),
+      home: const LandingScreen(),
+      debugShowCheckedModeBanner: false,
     );
   }
 }

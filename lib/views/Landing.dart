@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import '../components/top_navigation_bar.dart';
-import 'Login.dart';
-import 'student/Register.dart';
+import 'login.dart';
+import 'student/register.dart';
 
 class LandingScreen extends StatefulWidget {
   const LandingScreen({super.key});
@@ -25,18 +25,18 @@ class _LandingScreenState extends State<LandingScreen>
   @override
   void initState() {
     super.initState();
-    
+
     // Initialize animation controllers with smoother durations
     _heroController = AnimationController(
       duration: const Duration(milliseconds: 1800),
       vsync: this,
     );
-    
+
     _cardsController = AnimationController(
       duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
-    
+
     _aboutController = AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
@@ -180,7 +180,7 @@ class _LandingScreenState extends State<LandingScreen>
                       shape: BoxShape.circle,
                       gradient: RadialGradient(
                         colors: [
-                          const Color(0xFF3B82F6).withOpacity(0.1),
+                          const Color(0xFF3B82F6).withAlpha(26),
                           Colors.transparent,
                         ],
                       ),
@@ -207,7 +207,7 @@ class _LandingScreenState extends State<LandingScreen>
                       shape: BoxShape.circle,
                       gradient: RadialGradient(
                         colors: [
-                          const Color(0xFF8B5CF6).withOpacity(0.08),
+                          const Color(0xFF8B5CF6).withAlpha(20),
                           Colors.transparent,
                         ],
                       ),
@@ -237,13 +237,14 @@ class _LandingScreenState extends State<LandingScreen>
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Colors.white.withOpacity(0.15),
-                  Colors.white.withOpacity(0.08),
+                  Colors.white.withAlpha(38),
+                  Colors.white.withAlpha(20),
                 ],
               ),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(24)),
               border: Border.all(
-                color: Colors.white.withOpacity(0.1),
+                color: Colors.white.withAlpha(26),
                 width: 1,
               ),
             ),
@@ -255,21 +256,31 @@ class _LandingScreenState extends State<LandingScreen>
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.3),
+                    color: Colors.white.withAlpha(77),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
                 const SizedBox(height: 30),
-                _buildMobileMenuItem(context, 'Home', Icons.home_rounded, () {}),
-                _buildMobileMenuItem(context, 'Courses', Icons.book_rounded, () {}),
-                _buildMobileMenuItem(context, 'About', Icons.info_rounded, () {}),
-                _buildMobileMenuItem(context, 'Contact', Icons.contact_mail_rounded, () {}),
+                _buildMobileMenuItem(
+                    context, 'Home', Icons.home_rounded, () {}),
+                _buildMobileMenuItem(
+                    context, 'Courses', Icons.book_rounded, () {}),
+                _buildMobileMenuItem(
+                    context, 'About', Icons.info_rounded, () {}),
+                _buildMobileMenuItem(
+                    context, 'Contact', Icons.contact_mail_rounded, () {}),
                 const SizedBox(height: 20),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: SizedBox(
                     width: double.infinity,
-                    child: _buildMobileGetStartedButton(),
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context); // Close the bottom sheet first
+                        _handleGetStarted(context);
+                      },
+                      child: _buildMobileGetStartedButton(),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 30),
@@ -281,7 +292,8 @@ class _LandingScreenState extends State<LandingScreen>
     );
   }
 
-  Widget _buildMobileMenuItem(BuildContext context, String title, IconData icon, VoidCallback onTap) {
+  Widget _buildMobileMenuItem(
+      BuildContext context, String title, IconData icon, VoidCallback onTap) {
     return ListTile(
       leading: Icon(icon, color: Colors.white, size: 24),
       title: Text(
@@ -309,13 +321,13 @@ class _LandingScreenState extends State<LandingScreen>
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                Colors.white.withOpacity(0.2),
-                Colors.white.withOpacity(0.1),
+                Colors.white.withAlpha(51),
+                Colors.white.withAlpha(26),
               ],
             ),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white.withAlpha(38),
               width: 1,
             ),
           ),
@@ -380,19 +392,19 @@ class _LandingScreenState extends State<LandingScreen>
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                               colors: [
-                                Colors.white.withOpacity(0.12),
-                                Colors.white.withOpacity(0.08),
-                                Colors.white.withOpacity(0.04),
+                                Colors.white.withAlpha(31),
+                                Colors.white.withAlpha(20),
+                                Colors.white.withAlpha(10),
                               ],
                             ),
                             borderRadius: BorderRadius.circular(32),
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.15),
+                              color: Colors.white.withAlpha(38),
                               width: 1,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
+                                color: Colors.black.withAlpha(26),
                                 blurRadius: 40,
                                 offset: const Offset(0, 20),
                               ),
@@ -417,7 +429,7 @@ class _LandingScreenState extends State<LandingScreen>
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: isMobile ? 18 : 22,
-                                  color: Colors.white.withOpacity(0.9),
+                                  color: Colors.white.withAlpha(230),
                                   height: 1.5,
                                   fontWeight: FontWeight.w400,
                                 ),
@@ -430,11 +442,13 @@ class _LandingScreenState extends State<LandingScreen>
                                 children: [
                                   GestureDetector(
                                     onTap: () => _handleGetStarted(context),
-                                    child: _buildModernButton('Start Learning', true, isMobile),
+                                    child: _buildModernButton(
+                                        'Start Learning', true, isMobile),
                                   ),
                                   GestureDetector(
                                     onTap: () => _handleLogin(context),
-                                    child: _buildModernButton('Login', false, isMobile),
+                                    child:
+                                        _buildModernButton('Login', false, isMobile),
                                   ),
                                 ],
                               ),
@@ -469,19 +483,19 @@ class _LandingScreenState extends State<LandingScreen>
               end: Alignment.bottomRight,
               colors: isPrimary
                   ? [
-                      const Color(0xFF3B82F6).withOpacity(0.8),
-                      const Color(0xFF1D4ED8).withOpacity(0.6),
+                      const Color(0xFF3B82F6).withAlpha(204),
+                      const Color(0xFF1D4ED8).withAlpha(153),
                     ]
                   : [
-                      Colors.white.withOpacity(0.15),
-                      Colors.white.withOpacity(0.08),
+                      Colors.white.withAlpha(38),
+                      Colors.white.withAlpha(20),
                     ],
             ),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: isPrimary 
-                  ? const Color(0xFF3B82F6).withOpacity(0.3)
-                  : Colors.white.withOpacity(0.2),
+              color: isPrimary
+                  ? const Color(0xFF3B82F6).withAlpha(77)
+                  : Colors.white.withAlpha(51),
               width: 1,
             ),
           ),
@@ -536,13 +550,13 @@ class _LandingScreenState extends State<LandingScreen>
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                                 colors: [
-                                  Colors.white.withOpacity(0.1),
-                                  Colors.white.withOpacity(0.05),
+                                  Colors.white.withAlpha(26),
+                                  Colors.white.withAlpha(13),
                                 ],
                               ),
                               borderRadius: BorderRadius.circular(24),
                               border: Border.all(
-                                color: Colors.white.withOpacity(0.1),
+                                color: Colors.white.withAlpha(26),
                                 width: 1,
                               ),
                             ),
@@ -564,7 +578,7 @@ class _LandingScreenState extends State<LandingScreen>
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     fontSize: isMobile ? 16 : 18,
-                                    color: Colors.white.withOpacity(0.8),
+                                    color: Colors.white.withAlpha(204),
                                     height: 1.5,
                                     fontWeight: FontWeight.w400,
                                   ),
@@ -582,7 +596,8 @@ class _LandingScreenState extends State<LandingScreen>
                         crossAxisCount: isMobile ? 1 : (isTablet ? 2 : 3),
                         crossAxisSpacing: 20,
                         mainAxisSpacing: 20,
-                        childAspectRatio: isMobile ? 1.4 : (isTablet ? 1.1 : 1.0),
+                        childAspectRatio:
+                            isMobile ? 1.4 : (isTablet ? 1.1 : 1.0),
                         children: [
                           _buildFeatureCard(
                             Icons.psychology_rounded,
@@ -618,6 +633,14 @@ class _LandingScreenState extends State<LandingScreen>
                             'Access your learning materials anywhere, anytime, on any device.',
                             const Color(0xFFF59E0B),
                             4,
+                          ),
+                          // FIX: Added a 6th feature card to make the grid even
+                          _buildFeatureCard(
+                            Icons.group_work_rounded,
+                            'Collaborative Tools',
+                            'Work with peers on projects in a shared, AI-assisted workspace.',
+                            const Color(0xFF2DD4BF), // teal-400
+                            5,
                           ),
                         ],
                       ),
@@ -660,13 +683,13 @@ class _LandingScreenState extends State<LandingScreen>
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          Colors.white.withOpacity(0.12),
-                          Colors.white.withOpacity(0.06),
+                          Colors.white.withAlpha(31),
+                          Colors.white.withAlpha(15),
                         ],
                       ),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.15),
+                        color: Colors.white.withAlpha(38),
                         width: 1,
                       ),
                     ),
@@ -681,14 +704,14 @@ class _LandingScreenState extends State<LandingScreen>
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                               colors: [
-                                color.withOpacity(0.8),
-                                color.withOpacity(0.6),
+                                color.withAlpha(204),
+                                color.withAlpha(153),
                               ],
                             ),
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: color.withOpacity(0.3),
+                                color: color.withAlpha(77),
                                 blurRadius: 12,
                                 offset: const Offset(0, 4),
                               ),
@@ -716,7 +739,7 @@ class _LandingScreenState extends State<LandingScreen>
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.white.withOpacity(0.8),
+                            color: Colors.white.withAlpha(204),
                             height: 1.4,
                             fontWeight: FontWeight.w400,
                           ),
@@ -764,19 +787,19 @@ class _LandingScreenState extends State<LandingScreen>
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                             colors: [
-                              Colors.white.withOpacity(0.12),
-                              Colors.white.withOpacity(0.08),
-                              Colors.white.withOpacity(0.04),
+                              Colors.white.withAlpha(31),
+                              Colors.white.withAlpha(20),
+                              Colors.white.withAlpha(10),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(32),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.15),
+                            color: Colors.white.withAlpha(38),
                             width: 1,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
+                              color: Colors.black.withAlpha(26),
                               blurRadius: 40,
                               offset: const Offset(0, 20),
                             ),
@@ -810,7 +833,7 @@ class _LandingScreenState extends State<LandingScreen>
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: isMobile ? 16 : 18,
-                                color: Colors.white.withOpacity(0.9),
+                                color: Colors.white.withAlpha(230),
                                 height: 1.6,
                                 fontWeight: FontWeight.w400,
                               ),
@@ -854,13 +877,13 @@ class _LandingScreenState extends State<LandingScreen>
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Colors.white.withOpacity(0.15),
-                Colors.white.withOpacity(0.08),
+                Colors.white.withAlpha(38),
+                Colors.white.withAlpha(20),
               ],
             ),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withAlpha(51),
               width: 1,
             ),
           ),
@@ -880,7 +903,7 @@ class _LandingScreenState extends State<LandingScreen>
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.white.withOpacity(0.8),
+                  color: Colors.white.withAlpha(204),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -913,13 +936,13 @@ class _LandingScreenState extends State<LandingScreen>
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        Colors.black.withOpacity(0.2),
-                        Colors.black.withOpacity(0.4),
+                        Colors.black.withAlpha(51),
+                        Colors.black.withAlpha(102),
                       ],
                     ),
                     border: Border(
                       top: BorderSide(
-                        color: Colors.white.withOpacity(0.1),
+                        color: Colors.white.withAlpha(26),
                         width: 1,
                       ),
                     ),
@@ -972,7 +995,7 @@ class _LandingScreenState extends State<LandingScreen>
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: isMobile ? 14 : 16,
-                                color: Colors.white.withOpacity(0.8),
+                                color: Colors.white.withAlpha(204),
                                 fontWeight: FontWeight.w400,
                               ),
                             ),
@@ -983,7 +1006,7 @@ class _LandingScreenState extends State<LandingScreen>
                                 gradient: LinearGradient(
                                   colors: [
                                     Colors.transparent,
-                                    Colors.white.withOpacity(0.2),
+                                    Colors.white.withAlpha(51),
                                     Colors.transparent,
                                   ],
                                 ),
@@ -995,7 +1018,7 @@ class _LandingScreenState extends State<LandingScreen>
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: isMobile ? 12 : 14,
-                                color: Colors.white.withOpacity(0.6),
+                                color: Colors.white.withAlpha(153),
                                 fontWeight: FontWeight.w400,
                               ),
                             ),

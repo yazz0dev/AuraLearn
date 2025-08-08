@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'views/Landing.dart';
+import 'views/landing.dart';
 
 void main() {
   runApp(const AuraLearnApp());

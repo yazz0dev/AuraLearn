@@ -1,6 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../login.dart';
+import '../../components/top_navigation_bar.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -36,16 +39,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _acceptTerms = false;
 
   final List<String> _streams = [
-    'Science',
-    'Commerce',
-    'Arts',
-    'Engineering',
-    'Medical',
+    'BSc (Bachelor of Science)',
+    'MSc (Master of Science)',
+    'BTech (Bachelor of Technology)',
+    'MTech (Master of Technology)',
+    'BE (Bachelor of Engineering)',
+    'ME (Master of Engineering)',
+    'BCA (Bachelor of Computer Applications)',
+    'MCA (Master of Computer Applications)',
+    'MBA (Master of Business Administration)',
     'Computer Science',
-    'Mathematics',
-    'Physics',
-    'Chemistry',
-    'Biology',
   ];
 
   @override
@@ -86,7 +89,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 key: _formKey,
                 child: Column(
                   children: [
-                    _buildBackButton(),
+                    const TopNavigationBar(),
                     const SizedBox(height: 20),
                     _buildHeader(isMobile),
                     const SizedBox(height: 40),
@@ -98,31 +101,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBackButton() {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: GestureDetector(
-        onTap: () => Navigator.pop(context),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1E293B),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: Colors.white.withAlpha(26),
-              width: 1,
-            ),
-          ),
-          child: const Icon(
-            Icons.arrow_back_ios_new,
-            color: Colors.white,
-            size: 20,
           ),
         ),
       ),
@@ -795,28 +773,59 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return;
       }
 
-      // Set loading state
+      // Store formatted times before async gap
+      final String? formattedStartTime = _startTime?.format(context);
+      final String? formattedEndTime = _endTime?.format(context);
+
       setState(() => _isLoading = true);
 
       try {
-        // Simulate API call delay
-        await Future.delayed(const Duration(seconds: 2));
-        
-        // Here you would typically send the data to your backend
-        _printRegistrationData();
-        
-        // Show success message
+        // Firebase Auth registration
+        UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
+
+        // Prepare user data
+        final userData = {
+          'uid': userCredential.user?.uid,
+          'name': _nameController.text.trim(),
+          'email': _emailController.text.trim(),
+          'stream': _selectedStream,
+          'examScore': _examScoreController.text.trim(),
+          'availability': {
+            'days': _selectedDays.entries.where((e) => e.value).map((e) => e.key).toList(),
+            'startTime': formattedStartTime,
+            'endTime': formattedEndTime,
+          },
+          'createdAt': FieldValue.serverTimestamp(),
+        };
+
+        // Store user data in Firestore
+        await FirebaseFirestore.instance.collection('users').doc(userCredential.user?.uid).set(userData);
+
         _showSuccessSnackBar('Registration successful! Welcome to AuraLearn!');
-        
-        // Navigate to login screen after a short delay
         await Future.delayed(const Duration(seconds: 1));
-        
         if (mounted) {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const LoginScreen()),
           );
         }
+      } on FirebaseAuthException catch (e) {
+        String errorMsg = 'Registration failed. Please try again.';
+        if (e.code == 'email-already-in-use') {
+          errorMsg = 'Email already in use.';
+        } else if (e.code == 'weak-password') {
+          errorMsg = 'Password is too weak.';
+        } else if (e.code == 'invalid-email') {
+          errorMsg = 'Invalid email address.';
+        } else if (e.code == 'operation-not-allowed') {
+          errorMsg = 'Operation not allowed. Please contact support.';
+        } else if (e.code == 'network-request-failed') {
+          errorMsg = 'Network error. Please check your connection.';
+        }
+        _showErrorSnackBar(errorMsg);
       } catch (e) {
         _showErrorSnackBar('Registration failed. Please try again.');
       } finally {
@@ -855,19 +864,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (value == null || value.isEmpty) {
       return 'Please enter a password';
     }
-    if (value.length < 8) {
-      return 'Password must be at least 8 characters';
+    if (value.length < 6) {
+      return 'Password must be at least 6 characters';
     }
-    if (!RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)').hasMatch(value)) {
-      return 'Password must contain uppercase, lowercase, and number';
+    if (!RegExp(r'^(?=.*[a-zA-Z])(?=.*\d)').hasMatch(value)) {
+      return 'Password must contain at least one alphabet and one number';
     }
     return null;
   }
 
   Widget _buildPasswordStrengthIndicator({Key? key}) {
-    final password = _passwordController.text;
-    final strength = _getPasswordStrength(password);
-    
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -882,99 +888,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Password Strength',
+            'Password must be at least 6 characters long and include an alphabet and a number.',
             style: TextStyle(
               fontSize: 12,
               color: Colors.white.withAlpha(179),
               fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: LinearProgressIndicator(
-                  value: strength / 5,
-                  backgroundColor: Colors.white.withAlpha(51),
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    _getStrengthColor(strength),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                _getStrengthText(strength),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: _getStrengthColor(strength),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
-  }
-
-  int _getPasswordStrength(String password) {
-    int strength = 0;
-    if (password.length >= 8) strength++;
-    if (RegExp(r'[a-z]').hasMatch(password)) strength++;
-    if (RegExp(r'[A-Z]').hasMatch(password)) strength++;
-    if (RegExp(r'\d').hasMatch(password)) strength++;
-    if (RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(password)) strength++;
-    return strength;
-  }
-
-  Color _getStrengthColor(int strength) {
-    switch (strength) {
-      case 0:
-      case 1:
-        return Colors.red;
-      case 2:
-        return Colors.orange;
-      case 3:
-        return Colors.yellow;
-      case 4:
-        return Colors.blue;
-      case 5:
-        return Colors.green;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  String _getStrengthText(int strength) {
-    switch (strength) {
-      case 0:
-      case 1:
-        return 'Weak';
-      case 2:
-        return 'Fair';
-      case 3:
-        return 'Good';
-      case 4:
-        return 'Strong';
-      case 5:
-        return 'Very Strong';
-      default:
-        return 'None';
-    }
-  }
-
-  void _printRegistrationData() {
-    _selectedDays.entries
-        .where((entry) => entry.value)
-        .map((entry) => entry.key)
-        .toList();
-
-    // print('Registration Data:');
-    // print('Name: ${_nameController.text}');
-    // print('Email: ${_emailController.text}');
-    // print('Stream: $_selectedStream');
-    // print('Exam Score: ${_examScoreController.text}%');
-    // print('Available Days: $selectedDays');
-    // print('Available Time: ${_startTime?.format(context)} - ${_endTime?.format(context)}');
   }
 }

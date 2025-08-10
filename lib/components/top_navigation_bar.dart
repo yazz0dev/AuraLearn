@@ -59,10 +59,11 @@ class TopNavigationBar extends StatelessWidget {
               horizontal: isMobile ? 16 : 32,
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 // Logo with Glass Effect
                 _buildLogo(),
+                Spacer(),
                 // Navigation Menu
                 if (!isMobile) ...[
                   _buildDesktopNavigation(),
@@ -122,23 +123,26 @@ class TopNavigationBar extends StatelessWidget {
   }
 
   Widget _buildDesktopNavigation() {
-    return Row(
-      children: [
-        _buildNavItem('Home', true, onHomeTap),
-        _buildNavItem('Courses', false, onCoursesTap),
-        _buildNavItem('About', false, onAboutTap),
-        _buildNavItem('Contact', false, onContactTap),
-        const SizedBox(width: 24),
-        if (isLoggedIn) ...[
-          _buildGlassButton('Dashboard', false, onTap: () {}),
-          const SizedBox(width: 12),
-          _buildUserAvatar(),
-        ] else ...[
-          _buildGlassButton('Login', false, onTap: () {}),
-          const SizedBox(width: 12),
-          _buildGlassButton('Get Started', true, onTap: onGetStartedTap),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _buildNavItem('Home', true, onHomeTap),
+          _buildNavItem('Courses', false, onCoursesTap),
+          _buildNavItem('About', false, onAboutTap),
+          _buildNavItem('Contact', false, onContactTap),
+          const SizedBox(width: 24),
+          if (isLoggedIn) ...[
+            _buildGlassButton('Dashboard', false, onTap: () {}),
+            const SizedBox(width: 12),
+            _buildUserAvatar(),
+          ] else ...[
+            _buildGlassButton('Login', false, onTap: () {}),
+            const SizedBox(width: 12),
+            _buildGlassButton('Get Started', true, onTap: onGetStartedTap),
+          ],
         ],
-      ],
+      ),
     );
   }
 

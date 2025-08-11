@@ -12,7 +12,7 @@ class AuraLearnApp extends StatelessWidget {
     return MaterialApp(
       title: 'AuraLearn',
       home: Scaffold(
-        body: Center(child: Text('AuraLearn Shell App')),
+        body: Center(child: Text('MCA GUYS')),
       ),
     );
   }

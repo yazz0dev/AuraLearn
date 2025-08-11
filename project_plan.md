@@ -8,7 +8,7 @@
 | 7   | Implement User Registration & Login               | 11/08/25   | 12/08/25   | 2    | Completed |
 | 16  | Build Admin User and Role Management              | 11/08/25   | 12/08/25   | 2    | In Progress |
 
-**Related Screens:**
+**Related Screens:** 
 - 🏠 Landing Screen
 - 🔐 Login Screen
 - 📝 Student Registration

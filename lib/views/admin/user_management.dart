@@ -1,6 +1,7 @@
+import 'package:auralearn/components/authenticated_app_layout.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import '../../components/bottom_bar.dart';
-import '../../components/top_navigation_bar.dart';
 
 class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({super.key});
@@ -39,112 +40,119 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const TopNavigationBar(),
-            const SizedBox(height: 8),
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: Center(
-                child: Text(
-                  'User Management',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+    return AuthenticatedAppLayout(
+      role: UserRole.admin,
+      appBarTitle: 'User Management',
+      bottomNavIndex: _currentIndex,
+      onBottomNavTap: (idx) {
+        setState(() {
+          _currentIndex = idx;
+        });
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E1E1E),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white24)
+              ),
+              child: TextField(
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  prefixIcon: Icon(Icons.search, color: Colors.white70),
+                  border: InputBorder.none,
+                  hintText: 'Search by name or email...',
+                  hintStyle: TextStyle(color: Colors.white54)
                 ),
+                onChanged: (val) => setState(() => _search = val),
               ),
             ),
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: TextField(
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.search),
-                    border: InputBorder.none,
-                    hintText: 'Search  by name or email...'
-                  ),
-                  onChanged: (val) => setState(() => _search = val),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  DropdownButton<String>(
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Theme(
+                  data: Theme.of(context).copyWith(canvasColor: const Color(0xFF2C2C2C)),
+                  child: DropdownButton<String>(
                     value: _selectedRole,
+                    style: const TextStyle(color: Colors.white),
+                    iconEnabledColor: Colors.white70,
+                    underline: Container(),
                     items: _roles.map((role) => DropdownMenuItem(
                       value: role,
                       child: Text(role),
                     )).toList(),
                     onChanged: (val) => setState(() => _selectedRole = val!),
                   ),
-                  const Spacer(),
-                  ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFD6D6F7),
-                      foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      elevation: 0,
-                    ),
-                    child: const Text('Add'),
+                ),
+                const Spacer(),
+                ElevatedButton(
+                  onPressed: () {},
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.withAlpha(51),
+                    foregroundColor: Colors.blue.shade200,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 0,
                   ),
-                ],
-              ),
+                  child: const Text('Add'),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            Expanded(
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: AnimationLimiter(
               child: ListView.builder(
                 itemCount: _filteredUsers.length,
                 itemBuilder: (context, idx) {
                   final user = _filteredUsers[idx];
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                  return AnimationConfiguration.staggeredList(
+                    position: idx,
+                    duration: const Duration(milliseconds: 375),
+                    child: SlideAnimation(
+                      verticalOffset: 50.0,
+                      child: FadeInAnimation(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: Row(
                             children: [
-                              Text(user['name']!, style: const TextStyle(fontWeight: FontWeight.w500)),
-                              Text(_maskEmail(user['email']!), style: const TextStyle(color: Colors.grey)),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(user['name']!, style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.white)),
+                                    Text(_maskEmail(user['email']!), style: const TextStyle(color: Colors.white54)),
+                                  ],
+                                ),
+                              ),
+                              ElevatedButton(
+                                onPressed: () {},
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF2C2C2C),
+                                  foregroundColor: Colors.white70,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                  elevation: 0,
+                                ),
+                                child: const Text('Edit'),
+                              ),
                             ],
                           ),
                         ),
-                        ElevatedButton(
-                          onPressed: () {},
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.grey[100],
-                            foregroundColor: Colors.black,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            elevation: 0,
-                          ),
-                          child: const Text('Edit'),
-                        ),
-                      ],
+                      ),
                     ),
                   );
                 },
               ),
             ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: SharedBottomBar(
-        currentIndex: _currentIndex,
-        onTap: (idx) {
-          setState(() { _currentIndex = idx; });
-          // Navigation logic can be added here
-        },
+          ),
+        ],
       ),
     );
   }

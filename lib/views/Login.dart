@@ -219,7 +219,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               ),
             ),
             const SizedBox(height: 24),
-            // --- FIX: Reverted "Forgot Password" functionality to show a toast message. ---
             GestureDetector(
               onTap: () {
                 Toast.show(context, 'Forgot Password functionality not implemented yet.', type: ToastType.info);

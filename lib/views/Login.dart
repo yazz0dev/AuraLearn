@@ -1,20 +1,5 @@
 import 'package:flutter/material.dart';
-
-void main() {
-  runApp(const AuraLearnApp());
-}
-
-class AuraLearnApp extends StatelessWidget {
-  const AuraLearnApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: const LoginScreen(),
-    );
-  }
-}
+import 'forgot_password.dart'; // Make sure this file exists
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -29,20 +14,20 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA), // Softer page background
+      backgroundColor: const Color(0xFFF5F6FA), // Page background
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
             child: Column(
               children: [
-                const SizedBox(height: 80), // top spacing
+                const SizedBox(height: 80), // Top spacing
 
-                // Card-like form
+                // Card-like login container
                 Container(
                   width: 350,
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFDFEFE), // Softer white for card
+                    color: const Color(0xFFFDFEFE), // Card background
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
@@ -115,7 +100,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           onPressed: () {
-                            // Handle login
+                            // Handle login action
                           },
                           child: const Text(
                             "Login",
@@ -131,13 +116,20 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 50), // controlled gap before links
+                const SizedBox(height: 50), // Controlled gap before links
 
-                // Forgot Password & Sign Up
+                // Forgot Password & Sign Up section
                 Column(
                   children: [
                     TextButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ForgotPasswordScreen(),
+                          ),
+                        );
+                      },
                       child: const Text(
                         "Forgot Password?",
                         style: TextStyle(color: Color(0xFF6C8EAD)),
@@ -148,7 +140,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         const Text("Don’t have an account? "),
                         GestureDetector(
-                          onTap: () {},
+                          onTap: () {
+                            // Navigate to Sign Up
+                          },
                           child: const Text(
                             "Sign Up",
                             style: TextStyle(
@@ -162,7 +156,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 30), // bottom padding
+                const SizedBox(height: 30), // Bottom padding
               ],
             ),
           ),

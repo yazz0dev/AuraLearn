@@ -16,6 +16,7 @@ Agents.md
 .metadata
 analysis_options.yaml
 android
+node_modules/
 
 # IntelliJ related
 *.iml

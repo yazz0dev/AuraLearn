@@ -3,6 +3,7 @@ import 'package:auralearn/components/toast.dart';
 import 'package:auralearn/views/admin/dashboard_admin.dart';
 import 'package:auralearn/views/kp/dashboard_kp.dart';
 import 'package:auralearn/views/student/dashboard.dart';
+import 'package:auralearn/views/student/register.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -57,7 +58,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         throw Exception("Authentication failed. Please try again.");
       }
 
-      // Fetch user role from Firestore
       final docSnapshot = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
 
       if (!docSnapshot.exists || docSnapshot.data() == null) {
@@ -69,7 +69,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       if (!mounted) return;
       Toast.show(context, "Login successful!", type: ToastType.success);
 
-      // Navigate based on role
       switch (role) {
         case 'Admin':
           Navigator.of(context).pushAndRemoveUntil(
@@ -88,7 +87,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       }
     } on FirebaseAuthException catch (e) {
       String message = "An unknown error occurred.";
-      // Unify error messages for security
       if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
         message = 'Invalid email or password.';
       } else {
@@ -99,9 +97,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       }
     } catch (e) {
       if (!mounted) return;
-      // Sign out user if data is inconsistent to prevent a broken state
       await FirebaseAuth.instance.signOut();
-      // --- FIX: Added 'if (!mounted) return;' to fix use_build_context_synchronously warning ---
       if (!mounted) return;
       Toast.show(context, e.toString().replaceFirst("Exception: ", ""), type: ToastType.error);
     } finally {
@@ -221,6 +217,35 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                       : const Text('Login', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                 ),
               ),
+            ),
+            const SizedBox(height: 24),
+            // --- NEW: Added footer links ---
+            GestureDetector(
+              onTap: () {
+                // TODO: Implement forgot password logic
+                Toast.show(context, 'Forgot Password functionality not implemented yet.', type: ToastType.info);
+              },
+              child: Text(
+                'Forgot Password?',
+                style: TextStyle(color: Colors.white.withAlpha(179)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text("Don’t have an account? ", style: TextStyle(color: Colors.white.withAlpha(179))),
+                GestureDetector(
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterScreen())),
+                  child: const Text(
+                    "Sign Up",
+                    style: TextStyle(
+                      color: Color(0xFF3B82F6),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

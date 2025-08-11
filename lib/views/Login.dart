@@ -219,10 +219,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               ),
             ),
             const SizedBox(height: 24),
-            // --- NEW: Added footer links ---
             GestureDetector(
               onTap: () {
-                // TODO: Implement forgot password logic
                 Toast.show(context, 'Forgot Password functionality not implemented yet.', type: ToastType.info);
               },
               child: Text(

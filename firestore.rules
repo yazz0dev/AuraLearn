@@ -2,8 +2,22 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if request.auth != null;
+    
+    // Specific rules for the 'users' collection
+    match /users/{userId} {
+      // Any authenticated user can read user profiles.
+      // The .count() function requires 'list' permission.
+      allow get, list: if request.auth != null;
+
+      // A user can only create or update their own document.
+      allow create, update: if request.auth.uid == userId;
     }
+
+    // Add more specific rules for other collections here.
+    // Example:
+    // match /subjects/{subjectId} {
+    //   allow read: if request.auth != null;
+    //   // etc.
+    // }
   }
 }

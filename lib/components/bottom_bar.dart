@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-// Enum to define user roles for the bottom bar
-enum UserRole { admin, student }
+// --- FIX: Added 'kp' to the enum to support the new role ---
+enum UserRole { admin, student, kp }
 
 class SharedBottomBar extends StatelessWidget {
   final int currentIndex;
@@ -45,7 +45,7 @@ class SharedBottomBar extends StatelessWidget {
     ),
   ];
 
-  // --- FIX: Items for the Admin role updated to only include Dashboard and Users ---
+  // Items for the Admin role
   static const List<BottomNavigationBarItem> _adminItems = [
     BottomNavigationBarItem(
       icon: Icon(Icons.home_outlined),
@@ -58,9 +58,35 @@ class SharedBottomBar extends StatelessWidget {
       label: 'Users',
     ),
   ];
+  
+  // Items for the KP role
+  static const List<BottomNavigationBarItem> _kpItems = [
+    BottomNavigationBarItem(
+      icon: Icon(Icons.school_outlined),
+      activeIcon: Icon(Icons.school),
+      label: 'My Subjects',
+    ),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.assignment_turned_in_outlined),
+      activeIcon: Icon(Icons.assignment_turned_in),
+      label: 'Review Queue',
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
+    // Determine which items to show based on the role
+    List<BottomNavigationBarItem> getItemsForRole() {
+      switch (role) {
+        case UserRole.student:
+          return _studentItems;
+        case UserRole.admin:
+          return _adminItems;
+        case UserRole.kp:
+          return _kpItems;
+      }
+    }
+
     return BottomNavigationBar(
       currentIndex: currentIndex,
       onTap: onTap,
@@ -71,7 +97,7 @@ class SharedBottomBar extends StatelessWidget {
       selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
       unselectedLabelStyle: const TextStyle(fontSize: 12),
       elevation: 8,
-      items: role == UserRole.student ? _studentItems : _adminItems,
+      items: getItemsForRole(),
     );
   }
 }

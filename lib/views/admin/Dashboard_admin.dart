@@ -22,16 +22,13 @@ class _DashboardAdminState extends State<DashboardAdmin> {
     _userCountsFuture = _fetchUserCounts();
   }
 
-  // --- Fetches user counts from Firestore ---
   Future<Map<String, int>> _fetchUserCounts() async {
     final usersCollection = FirebaseFirestore.instance.collection('users');
     
-    // Perform queries to get counts
     final totalUsersQuery = await usersCollection.count().get();
     final studentUsersQuery = await usersCollection.where('role', isEqualTo: 'Student').count().get();
     final kpUsersQuery = await usersCollection.where('role', isEqualTo: 'KP').count().get();
 
-    // --- FIX: Handle nullable int? from .count by providing a default of 0 ---
     return {
       'total': totalUsersQuery.count ?? 0,
       'students': studentUsersQuery.count ?? 0,
@@ -118,7 +115,6 @@ class _DashboardAdminState extends State<DashboardAdmin> {
                               const SizedBox(height: 8),
                               Text('${counts['total']}', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white)),
                               const SizedBox(height: 4),
-                              // Placeholder for growth
                               const Text('+0%', style: TextStyle(color: Colors.green, fontWeight: FontWeight.w500)),
                             ],
                           ),
@@ -182,6 +178,7 @@ class _DashboardAdminState extends State<DashboardAdmin> {
     );
   }
 
+  // --- FIX: Wrapped the text Column in a FittedBox to prevent overflow ---
   Widget _buildManagementCard({required Color color, required Color iconColor, required String title, required String subtitle}) {
     return Container(
       height: 80,
@@ -200,13 +197,24 @@ class _DashboardAdminState extends State<DashboardAdmin> {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white)),
-                Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.white70)),
-              ],
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(fontSize: 12, color: Colors.white70),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -214,6 +222,7 @@ class _DashboardAdminState extends State<DashboardAdmin> {
     );
   }
 
+  // --- FIX: Wrapped the text Column in a FittedBox to prevent overflow ---
   Widget _buildReviewQueueCard() {
     return Container(
       height: 80,
@@ -234,14 +243,25 @@ class _DashboardAdminState extends State<DashboardAdmin> {
             ),
           ),
           const SizedBox(width: 12),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text('Subject', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white)),
-                Text('X Chunks Awaiting Approval', style: TextStyle(fontSize: 12, color: Colors.white70)),
-              ],
+          Expanded(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Text(
+                    'Subject', 
+                    style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'X Chunks Awaiting Approval', 
+                    style: TextStyle(fontSize: 12, color: Colors.white70),
+                  ),
+                ],
+              ),
             ),
           ),
         ],

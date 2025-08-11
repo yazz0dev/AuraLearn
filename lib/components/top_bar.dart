@@ -38,20 +38,18 @@ class TopNavigationBar extends StatelessWidget {
           ),
           child: Row(
             children: [
-              // --- FIX: Wrap the logo component in Flexible to allow it to shrink ---
-              Flexible(
-                child: MouseRegion(
-                  cursor: SystemMouseCursors.click,
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(builder: (context) => const LandingScreen()),
-                        (route) => false,
-                      );
-                    },
-                    child: _buildLogo(),
-                  ),
+              // --- FIX: Removed Flexible wrapper to prioritize showing the full logo ---
+              MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (context) => const LandingScreen()),
+                      (route) => false,
+                    );
+                  },
+                  child: _buildLogo(),
                 ),
               ),
               const Spacer(),
@@ -69,18 +67,16 @@ class TopNavigationBar extends StatelessWidget {
       children: [
         const Icon(Icons.school, color: Colors.white, size: 28),
         const SizedBox(width: 12),
-        // --- FIX: Wrap Text in Flexible to allow it to truncate with ellipsis ---
-        Flexible(
-          child: Text(
-            'AuraLearn',
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-            overflow: TextOverflow.ellipsis,
-            softWrap: false,
+        // This text is now less likely to be truncated.
+        Text(
+          'AuraLearn',
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
           ),
+          overflow: TextOverflow.ellipsis,
+          softWrap: false,
         ),
       ],
     );
@@ -112,9 +108,10 @@ class TopNavigationBar extends StatelessWidget {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Container(
+            // --- FIX: Reduced padding to make buttons smaller ---
             padding: EdgeInsets.symmetric(
-              horizontal: isSmall ? 16 : 22,
-              vertical: isSmall ? 10 : 12,
+              horizontal: isSmall ? 14 : 20,
+              vertical: isSmall ? 8 : 10,
             ),
             decoration: BoxDecoration(
               gradient: LinearGradient(

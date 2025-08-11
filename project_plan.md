@@ -5,8 +5,8 @@
 ### 📝 Scrum 1
 | 🆔 ID  | 🗂️ Task Name                                         | 📅 Start Date | 📅 End Date   | 📆 Days | 📊 Status   |
 |-----|---------------------------------------------------|------------|------------|------|----------|
-| 7   | Implement User Registration & Login               | 11/08/25   | 12/08/25   | 2    | To-Do    |
-| 16  | Build Admin User and Role Management              | 11/08/25   | 12/08/25   | 2    | To-Do    |
+| 7   | Implement User Registration & Login               | 11/08/25   | 12/08/25   | 2    | Completed |
+| 16  | Build Admin User and Role Management              | 11/08/25   | 12/08/25   | 2    | In Progress |
 
 **Related Screens:**
 - 🏠 Landing Screen

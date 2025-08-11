@@ -14,22 +14,22 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    // --- FIX: This screen now inherits its theme from AuthenticatedAppLayout. ---
     return AuthenticatedAppLayout(
       role: UserRole.student,
       appBarTitle: 'Dashboard',
       appBarActions: [
         Padding(
-          padding: const EdgeInsets.only(right: 20.0),
+          padding: const EdgeInsets.only(right: 4.0, top: 4.0, bottom: 4.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const CircleAvatar(
-                radius: 18,
-                backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=12'), // Placeholder image
+                // --- FIX: Reduced radius slightly to fix the 1px overflow ---
+                radius: 17, 
+                backgroundColor: Colors.blueGrey,
+                backgroundImage: NetworkImage('https://picsum.photos/seed/student_avatar/150/150'),
               ),
-              const SizedBox(height: 2),
               Text(
                 'profile',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 10),
@@ -51,7 +51,6 @@ class _StudentDashboardState extends State<StudentDashboard> {
         const SizedBox(height: 20),
         Text(
           'Welcome back, Name!',
-          // --- FIX: Removed hardcoded color to inherit from theme ---
           style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 26),
         ),
         const SizedBox(height: 30),
@@ -67,7 +66,6 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
   Widget _buildSubjectCard() {
     return Card(
-      // --- FIX: color is now handled by the layout's theme ---
       child: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Row(
@@ -87,7 +85,6 @@ class _StudentDashboardState extends State<StudentDashboard> {
             const SizedBox(width: 16),
             ElevatedButton(
               onPressed: () {},
-              // --- FIX: Style is inherited from theme, but can be customized ---
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).primaryColor,
                 foregroundColor: Colors.white,
@@ -118,7 +115,6 @@ class _StudentDashboardState extends State<StudentDashboard> {
         const SizedBox(height: 8),
         LinearProgressIndicator(
           value: 5 / 12,
-          // --- FIX: Colors now adapt to the current theme ---
           backgroundColor: Theme.of(context).progressIndicatorTheme.linearTrackColor,
           valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
           minHeight: 6,
@@ -141,7 +137,6 @@ class _StudentDashboardState extends State<StudentDashboard> {
           itemCount: topics.length,
           itemBuilder: (context, index) {
             return ListTile(
-              // --- FIX: Text color now inherited from theme ---
               title: Text(topics[index], style: const TextStyle(fontWeight: FontWeight.w500)),
               contentPadding: EdgeInsets.zero,
             );

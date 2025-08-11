@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:auralearn/components/toast.dart';
 import 'package:auralearn/views/admin/dashboard_admin.dart';
+import 'package:auralearn/views/forgot_password.dart';
 import 'package:auralearn/views/kp/dashboard_kp.dart';
 import 'package:auralearn/views/student/dashboard.dart';
 import 'package:auralearn/views/student/register.dart';
@@ -219,9 +220,13 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               ),
             ),
             const SizedBox(height: 24),
+            // --- FIX: Updated onTap to navigate to the ForgotPasswordScreen ---
             GestureDetector(
               onTap: () {
-                Toast.show(context, 'Forgot Password functionality not implemented yet.', type: ToastType.info);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
+                );
               },
               child: Text(
                 'Forgot Password?',

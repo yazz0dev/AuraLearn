@@ -52,8 +52,9 @@ class _ToastWidgetState extends State<_ToastWidget>
       vsync: this,
     );
 
+    // --- FIX: Adjusted animation to be less dramatic ---
     _offsetAnimation = Tween<Offset>(
-      begin: const Offset(0.0, -2.0),
+      begin: const Offset(0.0, -1.5), // Start animation closer to the top bar
       end: const Offset(0.0, 0.0),
     ).animate(CurvedAnimation(
       parent: _controller,
@@ -95,7 +96,9 @@ class _ToastWidgetState extends State<_ToastWidget>
     };
 
     return Positioned(
-      top: MediaQuery.of(context).padding.top + 20,
+      // --- FIX: Positioned the toast 96px from the top. ---
+      // This is the height of the TopNavigationBar (80px) + a 16px margin.
+      top: 96.0,
       left: 20,
       right: 20,
       child: FadeTransition(

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../components/top_navigation_bar.dart';
 
 void main() {
   runApp(const AuraLearnApp());

@@ -1,1 +1,21 @@
-{"flutter":{"platforms":{"dart":{"lib/firebase_options.dart":{"projectId":"auralearn-ddd5e","configurations":{"android":"1:682137911659:android:4ca9e3df0010a1cae3cc2e","web":"1:682137911659:web:5f65cf426ddf8c8de3cc2e"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "auralearn-ddd5e",
+          "configurations": {
+            "android": "1:682137911659:android:4ca9e3df0010a1cae3cc2e",
+            "web": "1:682137911659:web:5f65cf426ddf8c8de3cc2e"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "database": "(default)",
+    "location": "asia-south2",
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}

@@ -45,17 +45,12 @@ class SharedBottomBar extends StatelessWidget {
     ),
   ];
 
-  // Items for the Admin role
+  // --- FIX: Items for the Admin role updated to only include Dashboard and Users ---
   static const List<BottomNavigationBarItem> _adminItems = [
     BottomNavigationBarItem(
       icon: Icon(Icons.home_outlined),
       activeIcon: Icon(Icons.home),
       label: 'Dashboard',
-    ),
-    BottomNavigationBarItem(
-      icon: Icon(Icons.menu_book_outlined),
-      activeIcon: Icon(Icons.menu_book),
-      label: 'Content',
     ),
     BottomNavigationBarItem(
       icon: Icon(Icons.people_outline),

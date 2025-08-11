@@ -7,7 +7,7 @@ import 'package:time_range_picker/time_range_picker.dart' as time_range;
 
 import '../../components/app_layout.dart';
 import '../../components/toast.dart';
-import '../login.dart';
+import '../login.dart'; // FIX: Adjust path to reflect file rename.
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});

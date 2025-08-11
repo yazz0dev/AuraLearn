@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:auralearn/views/login.dart'; // Adjust path if necessary
+import 'package:auralearn/views/login.dart'; // FIX: Adjust path to reflect file rename.
 import 'package:auralearn/views/student/register.dart'; // Adjust path if necessary
 import 'top_bar.dart';
 

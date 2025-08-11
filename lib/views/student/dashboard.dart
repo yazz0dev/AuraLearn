@@ -14,7 +14,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    // The screen is now wrapped by AuthenticatedAppLayout, which handles the theme and structure.
+    // --- FIX: This screen now inherits its theme from AuthenticatedAppLayout. ---
     return AuthenticatedAppLayout(
       role: UserRole.student,
       appBarTitle: 'Dashboard',
@@ -23,13 +23,17 @@ class _StudentDashboardState extends State<StudentDashboard> {
           padding: const EdgeInsets.only(right: 20.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const CircleAvatar(
                 radius: 18,
                 backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=12'), // Placeholder image
               ),
               const SizedBox(height: 2),
-              Text('profile', style: TextStyle(fontSize: 10, color: Colors.grey[700])),
+              Text(
+                'profile',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 10),
+              ),
             ],
           ),
         ),
@@ -45,9 +49,10 @@ class _StudentDashboardState extends State<StudentDashboard> {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       children: [
         const SizedBox(height: 20),
-        const Text(
+        Text(
           'Welcome back, Name!',
-          style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black),
+          // --- FIX: Removed hardcoded color to inherit from theme ---
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 26),
         ),
         const SizedBox(height: 30),
         _buildSubjectCard(),
@@ -62,9 +67,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
   Widget _buildSubjectCard() {
     return Card(
-      elevation: 0,
-      color: Colors.grey[50],
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      // --- FIX: color is now handled by the layout's theme ---
       child: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Row(
@@ -73,19 +76,20 @@ class _StudentDashboardState extends State<StudentDashboard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Subject Name', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black)),
+                  Text('Subject Name', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontSize: 18)),
                   const SizedBox(height: 4),
-                  Text('description', style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+                  Text('description', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 14)),
                   const SizedBox(height: 8),
-                  Text('X lessons', style: TextStyle(fontSize: 14, color: Colors.grey[800])),
+                  Text('X lessons', style: Theme.of(context).textTheme.bodySmall),
                 ],
               ),
             ),
             const SizedBox(width: 16),
             ElevatedButton(
               onPressed: () {},
+              // --- FIX: Style is inherited from theme, but can be customized ---
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4A80F0),
+                backgroundColor: Theme.of(context).primaryColor,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -102,20 +106,21 @@ class _StudentDashboardState extends State<StudentDashboard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Progress', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black)),
+        Text('Progress', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontSize: 22)),
         const SizedBox(height: 16),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Topics Mastered', style: TextStyle(color: Colors.black54)),
-            const Text('5 / 12', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w500)),
+            Text('Topics Mastered', style: Theme.of(context).textTheme.bodyMedium),
+            Text('5 / 12', style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500)),
           ],
         ),
         const SizedBox(height: 8),
         LinearProgressIndicator(
           value: 5 / 12,
-          backgroundColor: Colors.grey[300],
-          valueColor: const AlwaysStoppedAnimation<Color>(Colors.black),
+          // --- FIX: Colors now adapt to the current theme ---
+          backgroundColor: Theme.of(context).progressIndicatorTheme.linearTrackColor,
+          valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
           minHeight: 6,
           borderRadius: BorderRadius.circular(3),
         ),
@@ -128,7 +133,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Upcoming Topics', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black)),
+        Text('Upcoming Topics', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontSize: 22)),
         const SizedBox(height: 16),
         ListView.separated(
           shrinkWrap: true,
@@ -136,7 +141,8 @@ class _StudentDashboardState extends State<StudentDashboard> {
           itemCount: topics.length,
           itemBuilder: (context, index) {
             return ListTile(
-              title: Text(topics[index], style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w500)),
+              // --- FIX: Text color now inherited from theme ---
+              title: Text(topics[index], style: const TextStyle(fontWeight: FontWeight.w500)),
               contentPadding: EdgeInsets.zero,
             );
           },

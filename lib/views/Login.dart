@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../components/top_navigation_bar.dart';
 
 void main() {
   runApp(const AuraLearnApp());
@@ -31,7 +29,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF5F6FA), // Softer page background
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -44,13 +42,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: 350,
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: const Color(0xFFFDFEFE), // Softer white for card
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black12,
                         blurRadius: 8,
-                        offset: Offset(0, 4),
+                        offset: const Offset(0, 4),
                       )
                     ],
                   ),
@@ -60,8 +58,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       const Text(
                         "AuraLearn",
                         style: TextStyle(
-                          fontSize: 24,
+                          fontSize: 28,
                           fontWeight: FontWeight.bold,
+                          color: Color(0xFF2C3E50),
                         ),
                       ),
                       const SizedBox(height: 30),
@@ -70,7 +69,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       TextField(
                         decoration: InputDecoration(
                           hintText: 'Email',
-                          prefixIcon: const Icon(Icons.email_outlined),
+                          hintStyle: const TextStyle(color: Colors.grey),
+                          prefixIcon: const Icon(Icons.email_outlined, color: Colors.grey),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8.0),
                           ),
@@ -83,12 +83,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         obscureText: _obscurePassword,
                         decoration: InputDecoration(
                           hintText: 'Password',
-                          prefixIcon: const Icon(Icons.lock_outline),
+                          hintStyle: const TextStyle(color: Colors.grey),
+                          prefixIcon: const Icon(Icons.lock_outline, color: Colors.grey),
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility_off
-                                  : Icons.visibility,
+                              _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                              color: Colors.grey,
                             ),
                             onPressed: () {
                               setState(() {
@@ -119,7 +119,11 @@ class _LoginScreenState extends State<LoginScreen> {
                           },
                           child: const Text(
                             "Login",
-                            style: TextStyle(fontSize: 16),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
@@ -134,7 +138,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     TextButton(
                       onPressed: () {},
-                      child: const Text("Forgot Password?"),
+                      child: const Text(
+                        "Forgot Password?",
+                        style: TextStyle(color: Color(0xFF6C8EAD)),
+                      ),
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -145,7 +152,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: const Text(
                             "Sign Up",
                             style: TextStyle(
-                              color: Colors.blue,
+                              color: Color(0xFF6C8EAD),
                               fontWeight: FontWeight.bold,
                             ),
                           ),

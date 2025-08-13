@@ -50,6 +50,7 @@
 - ⬆️ Syllabus and Study Material Upload
 - 🗂️ Topic and Content Management
 - 🧑‍🏫 KP Dashboard
+- Subject creation
 
 ## 🚀 Sprint 3
 

@@ -1,13 +1,13 @@
 import 'dart:ui';
+import 'package:auralearn/views/student/dashboard.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:go_router/go_router.dart';
 import 'package:time_range_picker/time_range_picker.dart' as time_range;
-
 import '../../components/app_layout.dart';
 import '../../components/toast.dart';
-import 'dashboard.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -38,12 +38,12 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
   TimeOfDay? _endTime;
 
   late AnimationController _animationController;
-  final List<String> _streams = ['BSc', 'MSc', 'BTech', 'MTech', 'BE', 'ME', 'BCA', 'MCA', 'MBA', 'Computer Science'];
+  final List<String> _streams = ['BSc', 'BTech', 'BCA', 'MCA', 'MBA', 'Other'];
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
+    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
     _addListeners();
     _animationController.forward();
   }
@@ -121,7 +121,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
       opacity: _animationController,
       child: SlideTransition(
         position: Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
-          CurvedAnimation(parent: _animationController, curve: Curves.easeOutQuart)
+          CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic)
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(24),
@@ -160,34 +160,29 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
           ),
           children: [
             Text(
-              'Register', 
+              'Create Your Account', 
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontSize: MediaQuery.of(context).size.width < 400 ? 24 : null
+                fontSize: MediaQuery.of(context).size.width < 400 ? 24 : null,
+                fontWeight: FontWeight.bold
               )
             ),
-            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 24 : 32),
+            const SizedBox(height: 32),
             _buildTextField(_nameController, 'Full Name', Icons.person_outline_rounded, validator: (v) => v!.isEmpty ? 'Please enter your name' : null),
-            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 12 : 16),
+            const SizedBox(height: 16),
             _buildTextField(_emailController, 'Email Address', Icons.email_outlined, validator: _validateEmail),
-            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 12 : 16),
+            const SizedBox(height: 16),
             _buildTextField(_passwordController, 'Password', Icons.lock_outline_rounded, obscureText: _obscurePassword, suffixIcon: _togglePasswordVisibility(), validator: (v) => v!.length < 6 ? 'Password must be at least 6 characters' : null),
-            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 12 : 16),
+            const SizedBox(height: 16),
             _buildTextField(_confirmPasswordController, 'Confirm Password', Icons.lock_person_outlined, obscureText: _obscurePassword, validator: (v) => v != _passwordController.text ? 'Passwords do not match' : null),
-            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 12 : 16),
-            _buildDropdown(),
-            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 24 : 32),
-            _buildSectionHeader('Last Exam Score'),
-            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 12 : 16),
-            _buildScoreSlider(),
-            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 24 : 32),
-            _buildSectionHeader('Set Your Weekly Availability'),
-            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 16 : 20),
-            _buildDaySelector(),
-            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 20 : 24),
-            _buildTimeRangePicker(),
-            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 24 : 32),
+            const SizedBox(height: 16),
+            _buildStreamSelector(),
+            const SizedBox(height: 24),
+            _buildScoreSelector(),
+            const SizedBox(height: 24),
+            _buildAvailabilitySection(),
+            const SizedBox(height: 24),
             _buildTermsCheckbox(),
-            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 24 : 32),
+            const SizedBox(height: 32),
             _buildRegisterButton(),
           ],
         ),
@@ -218,40 +213,79 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
 
   Widget _togglePasswordVisibility() {
     return IconButton(
-      icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
+      icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
       onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
     );
   }
 
-  Widget _buildDropdown() {
+  Widget _buildStreamSelector() {
     return DropdownButtonFormField<String>(
       value: _selectedStream,
-      decoration: InputDecoration(
+      isExpanded: true,
+      decoration: const InputDecoration(
         labelText: 'Select Stream',
-        prefixIcon: const Icon(Icons.school_outlined),
+        prefixIcon: Icon(Icons.school_outlined),
       ),
+      dropdownColor: const Color(0xFF1E293B),
       items: _streams.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
       onChanged: (v) => setState(() { _selectedStream = v; _updateButtonState(); }),
       validator: (v) => v == null ? 'Please select a stream' : null,
     );
   }
 
-  Widget _buildSectionHeader(String text) => Align(alignment: Alignment.centerLeft, child: Text(text, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)));
-
-  Widget _buildScoreSlider() {
-    return Slider(
-      value: _examScore,
-      min: 0,
-      max: 100,
-      divisions: 100,
-      label: _examScore.round().toString(),
-      onChanged: (v) => setState(() => _examScore = v),
+  Widget _buildScoreSelector() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      decoration: BoxDecoration(
+        color: Colors.white.withAlpha(26),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Last Exam Score',
+                style: Theme.of(context).inputDecorationTheme.floatingLabelStyle,
+              ),
+              Text(
+                '${_examScore.round()}%',
+                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          Slider(
+            value: _examScore,
+            min: 0,
+            max: 100,
+            divisions: 100,
+            label: _examScore.round().toString(),
+            onChanged: (v) => setState(() => _examScore = v),
+          ),
+        ],
+      ),
     );
   }
-
+  
+  Widget _buildAvailabilitySection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Set Your Weekly Availability', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+        const SizedBox(height: 16),
+        _buildDaySelector(),
+        const SizedBox(height: 16),
+        _buildTimeRangePicker(),
+      ],
+    );
+  }
+  
   Widget _buildDaySelector() {
     return Wrap(
-      spacing: 8,
+      spacing: 8.0,
+      runSpacing: 8.0,
       children: _selectedDays.keys.map((day) {
         final selected = _selectedDays[day]!;
         return FilterChip(
@@ -265,16 +299,17 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     );
   }
 
+  // --- FIX: Reverted time picker to its custom-styled container ---
   Widget _buildTimeRangePicker() {
     final label = _startTime == null || _endTime == null
-        ? 'Select time range'
+        ? 'Select Time Range'
         : '${_startTime!.format(context)} - ${_endTime!.format(context)}';
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.white.withAlpha(26),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withAlpha(51)),
       ),
       child: Material(
         color: Colors.transparent,
@@ -285,7 +320,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
               context: context,
               start: _startTime,
               end: _endTime,
-              use24HourFormat: false, // This enables 12-hour format
+              use24HourFormat: false,
               strokeWidth: 2,
               ticks: 12,
               ticksColor: Colors.white.withAlpha(102),
@@ -294,15 +329,8 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
               handlerRadius: 8,
               strokeColor: Colors.white.withAlpha(51),
               backgroundColor: const Color(0xFF1E1E1E),
-              activeTimeTextStyle: const TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-              timeTextStyle: TextStyle(
-                color: Colors.white.withAlpha(179),
-                fontSize: 16,
-              ),
+              activeTimeTextStyle: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+              timeTextStyle: TextStyle(color: Colors.white.withAlpha(179), fontSize: 16),
             );
             if (result != null) {
               setState(() {
@@ -326,10 +354,9 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                   child: Text(
                     label,
                     style: TextStyle(
-                      color: _startTime == null || _endTime == null 
-                          ? Colors.white.withAlpha(179) 
-                          : Colors.white,
+                      color: _startTime == null ? Colors.white.withAlpha(179) : Colors.white,
                       fontSize: 16,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
@@ -344,12 +371,15 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
       ),
     );
   }
-
+  
   Widget _buildTermsCheckbox() {
     return CheckboxListTile(
-      title: const Text('I accept the Terms and Conditions'),
+      title: const Text('I accept the Terms and Conditions', style: TextStyle(color: Colors.white70)),
       value: _acceptTerms,
-      onChanged: (v) => setState(() => _acceptTerms = v == true ? true : false),
+      onChanged: (v) => setState(() { _acceptTerms = v ?? false; _updateButtonState(); }),
+      activeColor: const Color(0xFF3B82F6),
+      controlAffinity: ListTileControlAffinity.leading,
+      contentPadding: EdgeInsets.zero,
     );
   }
 
@@ -359,8 +389,8 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
       child: ElevatedButton(
         onPressed: _isButtonEnabled && !_isLoading ? _handleRegistration : null,
         child: _isLoading
-            ? const CircularProgressIndicator(color: Colors.white)
-            : const Text('Register'),
+            ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
+            : const Text('Create Account'),
       ),
     );
   }
@@ -390,7 +420,9 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
 
   void _handleRegistration() async {
     if (!_formKey.currentState!.validate()) {
-      if (mounted) Toast.show(context, 'Please correct the errors before proceeding.', type: ToastType.error);
+      if (mounted) {
+        Toast.show(context, 'Please correct the errors before proceeding.', type: ToastType.error);
+      }
       return;
     }
     setState(() => _isLoading = true);
@@ -422,18 +454,27 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
        await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set(userData);
 
       if (mounted) {
-        Toast.show(context, 'Registration successful! Welcome to the dashboard.', type: ToastType.success);
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const StudentDashboard()));
+        Toast.show(context, 'Registration successful! Welcome.', type: ToastType.success);
+        context.goNamed('home');
       }
     } on FirebaseAuthException catch (e) {
       String msg = e.message ?? 'An unknown error occurred.';
-      if (e.code == 'weak-password') msg = 'The password provided is too weak.';
-      else if (e.code == 'email-already-in-use') msg = 'An account already exists for that email.';
-      if (mounted) Toast.show(context, msg, type: ToastType.error);
+      if (e.code == 'weak-password') {
+        msg = 'The password provided is too weak.';
+      } else if (e.code == 'email-already-in-use') {
+        msg = 'An account already exists for that email.';
+      }
+      if (mounted) {
+        Toast.show(context, msg, type: ToastType.error);
+      }
     } catch (e) {
-      if (mounted) Toast.show(context, 'Registration failed. Please try again.', type: ToastType.error);
+      if (mounted) {
+        Toast.show(context, 'Registration failed. Please try again.', type: ToastType.error);
+      }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 }

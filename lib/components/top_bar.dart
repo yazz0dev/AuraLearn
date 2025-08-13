@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
-import 'package:auralearn/views/landing.dart';
+import 'package:go_router/go_router.dart';
 
 class TopNavigationBar extends StatelessWidget {
   final VoidCallback? onLoginTap;
@@ -39,19 +39,16 @@ class TopNavigationBar extends StatelessWidget {
           child: Row(
             children: [
               // --- FIX: Removed Flexible wrapper to prioritize showing the full logo ---
-              MouseRegion(
-                cursor: SystemMouseCursors.click,
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (context) => const LandingScreen()),
-                      (route) => false,
-                    );
-                  },
-                  child: _buildLogo(),
-                ),
-              ),
+ // --- FIX: Updated logo tap to use go_router ---
+  MouseRegion(
+    cursor: SystemMouseCursors.click,
+    child: GestureDetector(
+      onTap: () {
+        context.goNamed('home');
+      },
+      child: _buildLogo(),
+    ),
+  ),
               const Spacer(),
               _buildActions(context),
             ],

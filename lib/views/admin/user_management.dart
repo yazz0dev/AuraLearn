@@ -15,11 +15,24 @@ class UserManagementScreen extends StatefulWidget {
   State<UserManagementScreen> createState() => _UserManagementScreenState();
 }
 
-class _UserManagementScreenState extends State<UserManagementScreen> {
+class _UserManagementScreenState extends State<UserManagementScreen> with TickerProviderStateMixin {
   int _currentIndex = 1;
   String _search = '';
   String _selectedRole = 'All';
   final List<String> _roles = ['All', 'KP', 'Student', 'Admin'];
+  late final AnimationController _shimmerController;
+
+  @override
+  void initState() {
+    super.initState();
+    _shimmerController = AnimationController.unbounded(vsync: this)..repeat(min: -0.5, max: 1.5, period: const Duration(milliseconds: 1200));
+  }
+
+  @override
+  dispose() {
+    _shimmerController.dispose();
+    super.dispose();
+  }
 
   void _onNavigate(int index) {
     if (index == _currentIndex) return;
@@ -42,7 +55,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     }
   }
 
-  // --- NEW: Method to show the Add User dialog ---
   Future<void> _showAddUserDialog() async {
     final formKey = GlobalKey<FormState>();
     final nameController = TextEditingController();
@@ -126,7 +138,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     );
   }
 
-  // --- NEW: Logic to handle user creation ---
   Future<void> _handleCreateUser({
     required String name,
     required String email,
@@ -236,13 +247,12 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          // --- FIX: Use StreamBuilder to get real-time user data ---
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance.collection('users').orderBy('createdAt', descending: true).snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return _buildLoadingSkeleton();
                 }
                 if (snapshot.hasError) {
                   return const Center(child: Text('Something went wrong.'));
@@ -313,5 +323,66 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildLoadingSkeleton() {
+    return AnimatedBuilder(
+      animation: _shimmerController,
+      builder: (context, child) {
+        // --- FIX: Corrected variable declaration from `final-gradient` to `final gradient` ---
+        final gradient = LinearGradient(
+          colors: const [Color(0xFF121212), Color(0xFF1E1E1E), Color(0xFF121212)],
+          stops: const [0.4, 0.5, 0.6],
+          begin: const Alignment(-1.0, -0.3),
+          end: const Alignment(1.0, 0.3),
+          transform: _SlidingGradientTransform(slidePercent: _shimmerController.value),
+        );
+        return ShaderMask(
+          blendMode: BlendMode.srcATop,
+          // --- FIX: Correctly reference the `gradient` variable ---
+          shaderCallback: (bounds) => gradient.createShader(bounds),
+          child: child,
+        );
+      },
+      child: ListView.builder(
+        itemCount: 10,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(height: 16, width: 150, color: Colors.white, margin: const EdgeInsets.only(bottom: 6)),
+                      Container(height: 14, width: 200, color: Colors.white),
+                    ],
+                  ),
+                ),
+                Container(
+                  height: 24,
+                  width: 60,
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _SlidingGradientTransform extends GradientTransform {
+  const _SlidingGradientTransform({
+    required this.slidePercent,
+  });
+
+  final double slidePercent;
+
+  @override
+  Matrix4? transform(Rect bounds, {TextDirection? textDirection}) {
+    return Matrix4.translationValues(bounds.width * slidePercent, 0.0, 0.0);
   }
 }

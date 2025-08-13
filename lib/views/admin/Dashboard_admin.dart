@@ -1,8 +1,9 @@
 import 'package:auralearn/components/authenticated_app_layout.dart';
-import 'package:auralearn/views/admin/user_management.dart';
+// import 'package:auralearn/views/admin/user_management.dart'; // No longer needed for navigation
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:go_router/go_router.dart'; // Import go_router
 import '../../components/bottom_bar.dart';
 
 class DashboardAdmin extends StatefulWidget {
@@ -12,14 +13,22 @@ class DashboardAdmin extends StatefulWidget {
   State<DashboardAdmin> createState() => _DashboardAdminState();
 }
 
-class _DashboardAdminState extends State<DashboardAdmin> {
+class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStateMixin {
   int _currentIndex = 0;
   late Future<Map<String, int>> _userCountsFuture;
+  late final AnimationController _shimmerController;
 
   @override
   void initState() {
     super.initState();
     _userCountsFuture = _fetchUserCounts();
+    _shimmerController = AnimationController.unbounded(vsync: this)..repeat(min: -0.5, max: 1.5, period: const Duration(milliseconds: 1200));
+  }
+  
+  @override
+  dispose() {
+    _shimmerController.dispose();
+    super.dispose();
   }
 
   Future<Map<String, int>> _fetchUserCounts() async {
@@ -37,21 +46,15 @@ class _DashboardAdminState extends State<DashboardAdmin> {
   }
 
 
+  // --- FIX: Updated navigation to use go_router ---
   void _onNavigate(int index) {
     if (index == _currentIndex) return;
 
     if (index == 1) {
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const UserManagementScreen(),
-          transitionDuration: const Duration(milliseconds: 200),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-        ),
-      );
+      // Go to the user management screen
+      context.goNamed('admin-users');
     } else {
+      // Stay on the dashboard (or handle other tabs if they existed)
       setState(() {
         _currentIndex = index;
       });
@@ -69,7 +72,7 @@ class _DashboardAdminState extends State<DashboardAdmin> {
         future: _userCountsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return _buildLoadingSkeleton();
           }
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
@@ -168,6 +171,69 @@ class _DashboardAdminState extends State<DashboardAdmin> {
     );
   }
 
+  Widget _buildLoadingSkeleton() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: AnimatedBuilder(
+        animation: _shimmerController,
+        builder: (context, child) {
+          // --- FIX: Corrected variable declaration from `final-gradient` to `final gradient` ---
+          final gradient = LinearGradient(
+            colors: const [Color(0xFF1E1E1E), Color(0xFF2C2C2C), Color(0xFF1E1E1E)],
+            stops: const [0.4, 0.5, 0.6],
+            begin: const Alignment(-1.0, -0.3),
+            end: const Alignment(1.0, 0.3),
+            transform: _SlidingGradientTransform(slidePercent: _shimmerController.value),
+          );
+          return ShaderMask(
+            blendMode: BlendMode.srcATop,
+            // --- FIX: Correctly reference the `gradient` variable ---
+            shaderCallback: (bounds) => gradient.createShader(bounds),
+            child: child,
+          );
+        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 8),
+            _buildSkeletonBox(height: 24, width: 200, isCentered: true),
+            const SizedBox(height: 20),
+            _buildSkeletonBox(height: 120, width: 340, isCentered: true),
+            const SizedBox(height: 24),
+            _buildSkeletonBox(height: 16, width: double.infinity),
+            const SizedBox(height: 8),
+            _buildSkeletonBox(height: 16, width: double.infinity),
+            const SizedBox(height: 8),
+            _buildSkeletonBox(height: 16, width: double.infinity),
+            const SizedBox(height: 28),
+            _buildSkeletonBox(height: 22, width: 220),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(child: _buildSkeletonBox(height: 80)),
+                const SizedBox(width: 16),
+                Expanded(child: _buildSkeletonBox(height: 80)),
+              ],
+            ),
+            const SizedBox(height: 32),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSkeletonBox({required double height, double? width, bool isCentered = false}) {
+    Widget box = Container(
+      height: height,
+      width: width,
+      decoration: BoxDecoration(
+        color: Colors.white, // This will be masked by the shader
+        borderRadius: BorderRadius.circular(8),
+      ),
+    );
+    return isCentered ? Center(child: box) : box;
+  }
+
   Widget _buildStatRow(String title, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -178,7 +244,6 @@ class _DashboardAdminState extends State<DashboardAdmin> {
     );
   }
 
-  // --- FIX: Wrapped the text Column in a FittedBox to prevent overflow ---
   Widget _buildManagementCard({required Color color, required Color iconColor, required String title, required String subtitle}) {
     return Container(
       height: 80,
@@ -222,7 +287,6 @@ class _DashboardAdminState extends State<DashboardAdmin> {
     );
   }
 
-  // --- FIX: Wrapped the text Column in a FittedBox to prevent overflow ---
   Widget _buildReviewQueueCard() {
     return Container(
       height: 80,
@@ -267,5 +331,18 @@ class _DashboardAdminState extends State<DashboardAdmin> {
         ],
       ),
     );
+  }
+}
+
+class _SlidingGradientTransform extends GradientTransform {
+  const _SlidingGradientTransform({
+    required this.slidePercent,
+  });
+
+  final double slidePercent;
+
+  @override
+  Matrix4? transform(Rect bounds, {TextDirection? textDirection}) {
+    return Matrix4.translationValues(bounds.width * slidePercent, 0.0, 0.0);
   }
 }

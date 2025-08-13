@@ -27,7 +27,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
+    // --- FIX: Increased animation speed for a snappier feel ---
+    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
     _animationController.forward();
     _checkForOobCode();
   }
@@ -163,7 +164,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
     return FadeTransition(
       opacity: _animationController,
       child: SlideTransition(
-        position: Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(_animationController),
+        // --- FIX: Smoother animation curve ---
+        position: Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(
+            CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic)),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(24),
           child: BackdropFilter(
@@ -267,7 +270,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
     return FadeTransition(
       opacity: _animationController,
       child: SlideTransition(
-        position: Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(_animationController),
+        position: Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(
+            CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic)),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(24),
           child: BackdropFilter(

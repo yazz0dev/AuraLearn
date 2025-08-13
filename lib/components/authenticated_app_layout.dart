@@ -1,5 +1,5 @@
 import 'package:auralearn/components/toast.dart';
-import 'package:auralearn/views/landing.dart';
+import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'bottom_bar.dart';
@@ -24,16 +24,14 @@ class AuthenticatedAppLayout extends StatelessWidget {
     this.showBottomBar = true, // FIX: Defines the parameter in the constructor
   });
 
+  // --- FIX: Updated logout handler to use go_router ---
   Future<void> _handleLogout(BuildContext context) async {
     try {
       await FirebaseAuth.instance.signOut();
       if (context.mounted) {
         Toast.show(context, 'Logged out successfully', type: ToastType.success);
-        // Navigate to landing screen and clear navigation stack
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const LandingScreen()),
-          (route) => false,
-        );
+        // Navigate to the home route, the redirect logic will handle showing the landing screen.
+        context.goNamed('home');
       }
     } catch (e) {
       if (context.mounted) {

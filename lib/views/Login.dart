@@ -30,7 +30,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
+    // --- FIX: Increased animation speed for a snappier feel ---
+    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
     _animationController.forward();
   }
 
@@ -140,7 +141,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       opacity: _animationController,
       child: SlideTransition(
         position: Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
-          CurvedAnimation(parent: _animationController, curve: Curves.easeOutQuart)
+          // --- FIX: Smoother animation curve ---
+          CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic)
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(24),
@@ -237,7 +239,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               ),
             ),
             SizedBox(height: MediaQuery.of(context).size.width < 400 ? 20 : 24),
-            // --- FIX: Updated onTap to navigate to the ForgotPasswordScreen ---
             GestureDetector(
               onTap: () {
                 Navigator.push(

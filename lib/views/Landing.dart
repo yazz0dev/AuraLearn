@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart'; // Note: Add url_launcher to your pubspec.yaml
 import '../components/app_layout.dart';
 import 'student/register.dart';
 
@@ -11,19 +14,48 @@ class LandingScreen extends StatefulWidget {
 
 class _LandingScreenState extends State<LandingScreen> with TickerProviderStateMixin {
   late AnimationController _controller;
-  late AnimationController _scrollController1;
-  late AnimationController _scrollController2;
+  late ScrollController _scrollController1;
+  late ScrollController _scrollController2;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(duration: const Duration(milliseconds: 1500), vsync: this);
-    _scrollController1 = AnimationController(duration: const Duration(seconds: 15), vsync: this);
-    _scrollController2 = AnimationController(duration: const Duration(seconds: 18), vsync: this);
-    
+    _controller = AnimationController(duration: const Duration(milliseconds: 1200), vsync: this);
+    _scrollController1 = ScrollController();
+    _scrollController2 = ScrollController();
+
     _controller.forward();
-    _scrollController1.repeat();
-    _scrollController2.repeat();
+
+    // Start the marquee animations after the first frame is rendered
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _startMarquee(_scrollController1, 30);
+      _startMarquee(_scrollController2, 35, reverse: true);
+    });
+  }
+
+  void _startMarquee(ScrollController controller, int seconds, {bool reverse = false}) {
+    if (!controller.hasClients || !mounted) return;
+
+    final double maxExtent = controller.position.maxScrollExtent;
+    final double minExtent = controller.position.minScrollExtent;
+
+    // Calculate a dynamic duration based on content width to ensure consistent speed
+    final duration = Duration(seconds: (maxExtent / 100).ceil());
+
+    // Animate to the end or beginning
+    controller
+        .animateTo(
+      reverse ? minExtent : maxExtent,
+      duration: duration,
+      curve: Curves.linear,
+    )
+        .then((_) {
+      // When animation completes, jump back and restart if the widget is still mounted
+      if (mounted && controller.hasClients) {
+        controller.jumpTo(reverse ? maxExtent : minExtent);
+        _startMarquee(controller, seconds, reverse: reverse);
+      }
+    });
   }
 
   @override
@@ -34,6 +66,13 @@ class _LandingScreenState extends State<LandingScreen> with TickerProviderStateM
     super.dispose();
   }
 
+  Future<void> _launchURL(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      debugPrint('Could not launch $url');
+    }
+  }
+
   Widget _buildAnimatedSection({
     required Widget child,
     required double intervalStart,
@@ -41,13 +80,14 @@ class _LandingScreenState extends State<LandingScreen> with TickerProviderStateM
   }) {
     final animation = CurvedAnimation(
       parent: _controller,
-      curve: Interval(intervalStart, intervalEnd, curve: Curves.easeOutQuart),
+      // --- FIX: Smoother and slightly faster animation curve ---
+      curve: Interval(intervalStart, intervalEnd, curve: Curves.easeOutCubic),
     );
     return FadeTransition(
       opacity: animation,
       child: SlideTransition(
         position: Tween<Offset>(
-          begin: const Offset(0, 0.1),
+          begin: const Offset(0, 0.2),
           end: Offset.zero,
         ).animate(animation),
         child: child,
@@ -276,9 +316,9 @@ class _LandingScreenState extends State<LandingScreen> with TickerProviderStateM
                   mainAxisSpacing: isSmallMobile ? 16 : 24,
                   childAspectRatio: isSmallMobile ? 2.0 : (isMobile ? 1.8 : 1.5),
                   children: [
-                    _buildFeatureCard(Icons.psychology_rounded, 'AI-Powered Learning', 'Personalized content generation based on your learning style.', const Color(0xFF3B82F6)),
-                    _buildFeatureCard(Icons.quiz_rounded, 'Interactive Quizzes', 'Dynamic quizzes that adapt to your knowledge level to reinforce learning.', const Color(0xFF8B5CF6)),
-                    _buildFeatureCard(Icons.analytics_rounded, 'Progress Tracking', 'Detailed analytics and insights to monitor your learning journey.', const Color(0xFF10B981)),
+                    _FeatureCard(icon: Icons.psychology_rounded, title: 'AI-Powered Learning', description: 'Personalized content generation based on your learning style.', color: const Color(0xFF3B82F6)),
+                    _FeatureCard(icon: Icons.quiz_rounded, title: 'Interactive Quizzes', description: 'Dynamic quizzes that adapt to your knowledge level to reinforce learning.', color: const Color(0xFF8B5CF6)),
+                    _FeatureCard(icon: Icons.analytics_rounded, title: 'Progress Tracking', description: 'Detailed analytics and insights to monitor your learning journey.', color: const Color(0xFF10B981)),
                   ],
                 ),
               ],
@@ -286,72 +326,6 @@ class _LandingScreenState extends State<LandingScreen> with TickerProviderStateM
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildFeatureCard(IconData icon, String title, String description, Color color) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isSmallCard = constraints.maxWidth < 300;
-        return TweenAnimationBuilder<double>(
-          tween: Tween(begin: 1.0, end: 1.0),
-          duration: const Duration(milliseconds: 200),
-          builder: (context, scale, child) {
-            return Transform.scale(
-              scale: scale,
-              child: MouseRegion(
-                onEnter: (event) {},
-                onExit: (event) {},
-                child: Container(
-                  padding: EdgeInsets.all(isSmallCard ? 16 : 20),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withAlpha(13),
-                    borderRadius: BorderRadius.circular(isSmallCard ? 16 : 24),
-                    border: Border.all(color: Colors.white.withAlpha(26)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: isSmallCard ? 40 : 48, 
-                        height: isSmallCard ? 40 : 48,
-                        decoration: BoxDecoration(
-                          color: color.withAlpha(38),
-                          borderRadius: BorderRadius.circular(isSmallCard ? 12 : 16),
-                        ),
-                        child: Icon(icon, size: isSmallCard ? 20 : 24, color: color),
-                      ),
-                      SizedBox(height: isSmallCard ? 12 : 16),
-                      Text(
-                        title, 
-                        style: TextStyle(
-                          fontSize: isSmallCard ? 16 : 18, 
-                          fontWeight: FontWeight.bold, 
-                          color: Colors.white
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      SizedBox(height: isSmallCard ? 6 : 8),
-                      Text(
-                        description, 
-                        style: TextStyle(
-                          fontSize: isSmallCard ? 12 : 13, 
-                          color: Colors.white.withAlpha(179), 
-                          height: 1.3
-                        ),
-                        maxLines: isSmallCard ? 3 : 4,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
     );
   }
 
@@ -392,59 +366,31 @@ class _LandingScreenState extends State<LandingScreen> with TickerProviderStateM
               ),
             ),
             SizedBox(height: isSmallMobile ? 40 : 60),
-            // First row - moving right to left
-            Container(
-              height: isSmallMobile ? 100 : 120,
-              child: ClipRect(
-                child: AnimatedBuilder(
-                  animation: _scrollController1,
-                  builder: (context, child) {
-                    return Transform.translate(
-                      offset: Offset(-_scrollController1.value * 800, 0),
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        physics: const NeverScrollableScrollPhysics(),
-                        child: Row(
-                          children: [
-                            ..._techCourses.take(3).map((course) => _buildModernCourseCard(course, isSmallMobile)),
-                            ..._techCourses.take(3).map((course) => _buildModernCourseCard(course, isSmallMobile)),
-                            ..._techCourses.take(3).map((course) => _buildModernCourseCard(course, isSmallMobile)),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
+            // --- FIX: Replaced with a seamless infinite marquee ---
+            _buildMarqueeRow(_scrollController1, _techCourses.take(3).toList(), isSmallMobile),
             SizedBox(height: isSmallMobile ? 16 : 20),
-            // Second row - moving left to right
-            Container(
-              height: isSmallMobile ? 100 : 120,
-              child: ClipRect(
-                child: AnimatedBuilder(
-                  animation: _scrollController2,
-                  builder: (context, child) {
-                    return Transform.translate(
-                      offset: Offset(_scrollController2.value * 800, 0),
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        physics: const NeverScrollableScrollPhysics(),
-                        child: Row(
-                          children: [
-                            ..._techCourses.skip(3).map((course) => _buildModernCourseCard(course, isSmallMobile)),
-                            ..._techCourses.skip(3).map((course) => _buildModernCourseCard(course, isSmallMobile)),
-                            ..._techCourses.skip(3).map((course) => _buildModernCourseCard(course, isSmallMobile)),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
+            _buildMarqueeRow(_scrollController2, _techCourses.skip(3).toList(), isSmallMobile, reverse: true),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildMarqueeRow(ScrollController controller, List<Map<String, dynamic>> courses, bool isSmallMobile, {bool reverse = false}) {
+    // Duplicate the list to ensure there's enough content to scroll smoothly
+    final duplicatedCourses = [...courses, ...courses, ...courses];
+
+    return SizedBox(
+      height: isSmallMobile ? 100 : 120,
+      child: ListView.builder(
+        controller: controller,
+        scrollDirection: Axis.horizontal,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: duplicatedCourses.length,
+        itemBuilder: (context, index) {
+          final course = duplicatedCourses[index];
+          return _buildModernCourseCard(course, isSmallMobile);
+        },
       ),
     );
   }
@@ -654,35 +600,15 @@ class _LandingScreenState extends State<LandingScreen> with TickerProviderStateM
                   spacing: isSmallMobile ? 12 : 16,
                   runSpacing: isSmallMobile ? 12 : 16,
                   children: [
-                    _buildSocialButton(Icons.facebook, 'Facebook', const Color(0xFF1877F2), isSmallMobile),
-                    _buildSocialButton(Icons.close, 'Twitter', const Color(0xFF1DA1F2), isSmallMobile), // X icon for Twitter/X
-                    _buildSocialButton(Icons.business, 'LinkedIn', const Color(0xFF0A66C2), isSmallMobile),
-                    _buildSocialButton(Icons.code, 'GitHub', const Color(0xFF333333), isSmallMobile),
+                    // --- FIX: Replaced social links ---
+                    _SocialButton(icon: Icons.code, color: const Color(0xFF90A4AE), isSmall: isSmallMobile, onTap: () => _launchURL('https://github.com')),
+                    _SocialButton(icon: Icons.camera_alt_outlined, color: const Color(0xFFE4405F), isSmall: isSmallMobile, onTap: () => _launchURL('https://instagram.com')),
+                    _SocialButton(icon: Icons.email_outlined, color: const Color(0xFF3B82F6), isSmall: isSmallMobile, onTap: () => _launchURL('mailto:contact@auralearn.com')),
                   ],
                 ),
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSocialButton(IconData icon, String platform, Color color, [bool isSmall = false]) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: Container(
-        width: isSmall ? 50 : 60,
-        height: isSmall ? 50 : 60,
-        decoration: BoxDecoration(
-          color: color.withAlpha(26),
-          borderRadius: BorderRadius.circular(isSmall ? 12 : 16),
-          border: Border.all(color: color.withAlpha(51)),
-        ),
-        child: Icon(
-          icon,
-          size: isSmall ? 24 : 28,
-          color: color,
         ),
       ),
     );
@@ -694,7 +620,8 @@ class _LandingScreenState extends State<LandingScreen> with TickerProviderStateM
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
         child: Text(
-          '© 2024 AuraLearn. All rights reserved.',
+          // --- FIX: Dynamic year ---
+          '© ${DateTime.now().year} AuraLearn. All rights reserved.',
           textAlign: TextAlign.center,
           style: TextStyle(color: Colors.white.withAlpha(102)),
         ),
@@ -753,4 +680,120 @@ class _LandingScreenState extends State<LandingScreen> with TickerProviderStateM
       'gradient': [Color(0xFF06B6D4), Color(0xFF0891B2)],
     },
   ];
+}
+
+// --- NEW: Private StatefulWidget for hover effect on feature cards ---
+class _FeatureCard extends StatefulWidget {
+  final IconData icon;
+  final String title;
+  final String description;
+  final Color color;
+
+  const _FeatureCard({required this.icon, required this.title, required this.description, required this.color});
+
+  @override
+  __FeatureCardState createState() => __FeatureCardState();
+}
+
+class __FeatureCardState extends State<_FeatureCard> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final isSmallCard = MediaQuery.of(context).size.width < 400;
+    return MouseRegion(
+      onEnter: (event) => setState(() => _isHovered = true),
+      onExit: (event) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: AnimatedScale(
+        scale: _isHovered ? 1.05 : 1.0,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        child: Container(
+          padding: EdgeInsets.all(isSmallCard ? 16 : 20),
+          decoration: BoxDecoration(
+            color: Colors.white.withAlpha(13),
+            borderRadius: BorderRadius.circular(isSmallCard ? 16 : 24),
+            border: Border.all(color: Colors.white.withAlpha(26)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: isSmallCard ? 40 : 48,
+                height: isSmallCard ? 40 : 48,
+                decoration: BoxDecoration(
+                  color: widget.color.withAlpha(38),
+                  borderRadius: BorderRadius.circular(isSmallCard ? 12 : 16),
+                ),
+                child: Icon(widget.icon, size: isSmallCard ? 20 : 24, color: widget.color),
+              ),
+              SizedBox(height: isSmallCard ? 12 : 16),
+              Text(
+                widget.title,
+                style: TextStyle(fontSize: isSmallCard ? 16 : 18, fontWeight: FontWeight.bold, color: Colors.white),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              SizedBox(height: isSmallCard ? 6 : 8),
+              Expanded(
+                child: Text(
+                  widget.description,
+                  style: TextStyle(fontSize: isSmallCard ? 12 : 13, color: Colors.white.withAlpha(179), height: 1.3),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// --- NEW: Private StatefulWidget for hover effect on social buttons ---
+class _SocialButton extends StatefulWidget {
+  final IconData icon;
+  final Color color;
+  final bool isSmall;
+  final VoidCallback onTap;
+
+  const _SocialButton({required this.icon, required this.color, required this.isSmall, required this.onTap});
+
+  @override
+  __SocialButtonState createState() => __SocialButtonState();
+}
+
+class __SocialButtonState extends State<_SocialButton> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedScale(
+          scale: _isHovered ? 1.15 : 1.0,
+          duration: const Duration(milliseconds: 200),
+          child: Container(
+            width: widget.isSmall ? 50 : 60,
+            height: widget.isSmall ? 50 : 60,
+            decoration: BoxDecoration(
+              color: widget.color.withAlpha(26),
+              borderRadius: BorderRadius.circular(widget.isSmall ? 12 : 16),
+              border: Border.all(color: widget.color.withAlpha(51)),
+            ),
+            child: Icon(
+              widget.icon,
+              size: widget.isSmall ? 24 : 28,
+              color: widget.color,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

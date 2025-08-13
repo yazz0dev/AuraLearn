@@ -7,7 +7,7 @@ import 'package:time_range_picker/time_range_picker.dart' as time_range;
 
 import '../../components/app_layout.dart';
 import '../../components/toast.dart';
-import '../login.dart'; // FIX: Adjust path to reflect file rename.
+import 'dashboard.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -43,7 +43,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
+    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
     _addListeners();
     _animationController.forward();
   }
@@ -81,6 +81,13 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     if (isValid != _isButtonEnabled) setState(() => _isButtonEnabled = isValid);
   }
 
+  String? _validateEmail(String? value) {
+    if (value == null || value.isEmpty) return 'Email is required';
+    final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
+    if (!emailRegex.hasMatch(value)) return 'Enter a valid email';
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     return AppLayout(
@@ -90,15 +97,15 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
           _buildAuroraEffect(const Color(0xFF3B82F6), Alignment.centerLeft),
           _buildAuroraEffect(const Color(0xFF8B5CF6), Alignment.centerRight),
           SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: EdgeInsets.symmetric(horizontal: MediaQuery.of(context).size.width < 400 ? 16 : 20),
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 500),
                 child: Column(
                   children: [
-                    const SizedBox(height: 100),
+                    SizedBox(height: MediaQuery.of(context).size.width < 400 ? 100 : 120),
                     _buildAnimatedGlassForm(),
-                    const SizedBox(height: 100),
+                    SizedBox(height: MediaQuery.of(context).size.width < 400 ? 80 : 100),
                   ],
                 ),
               ),
@@ -113,16 +120,21 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     return FadeTransition(
       opacity: _animationController,
       child: SlideTransition(
-        position: Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(_animationController),
+        position: Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
+          CurvedAnimation(parent: _animationController, curve: Curves.easeOutQuart)
+        ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(24),
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
+              padding: EdgeInsets.symmetric(
+                horizontal: MediaQuery.of(context).size.width < 400 ? 20 : 28, 
+                vertical: MediaQuery.of(context).size.width < 400 ? 24 : 32
+              ),
               decoration: BoxDecoration(
                 gradient: LinearGradient(colors: [Colors.white.withAlpha(26), Colors.white.withAlpha(13)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(MediaQuery.of(context).size.width < 400 ? 20 : 24),
                 border: Border.all(color: Colors.white.withAlpha(38), width: 1),
               ),
               child: Form(
@@ -147,30 +159,35 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
             child: FadeInAnimation(child: widget),
           ),
           children: [
-            _buildHeader(),
-            const SizedBox(height: 32),
+            Text(
+              'Register', 
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontSize: MediaQuery.of(context).size.width < 400 ? 24 : null
+              )
+            ),
+            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 24 : 32),
             _buildTextField(_nameController, 'Full Name', Icons.person_outline_rounded, validator: (v) => v!.isEmpty ? 'Please enter your name' : null),
-            const SizedBox(height: 16),
+            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 12 : 16),
             _buildTextField(_emailController, 'Email Address', Icons.email_outlined, validator: _validateEmail),
-            const SizedBox(height: 16),
+            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 12 : 16),
             _buildTextField(_passwordController, 'Password', Icons.lock_outline_rounded, obscureText: _obscurePassword, suffixIcon: _togglePasswordVisibility(), validator: (v) => v!.length < 6 ? 'Password must be at least 6 characters' : null),
-            const SizedBox(height: 16),
+            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 12 : 16),
             _buildTextField(_confirmPasswordController, 'Confirm Password', Icons.lock_person_outlined, obscureText: _obscurePassword, validator: (v) => v != _passwordController.text ? 'Passwords do not match' : null),
-            const SizedBox(height: 16),
+            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 12 : 16),
             _buildDropdown(),
-            const SizedBox(height: 32),
+            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 24 : 32),
             _buildSectionHeader('Last Exam Score'),
-            const SizedBox(height: 16),
+            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 12 : 16),
             _buildScoreSlider(),
-            const SizedBox(height: 32),
+            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 24 : 32),
             _buildSectionHeader('Set Your Weekly Availability'),
-            const SizedBox(height: 20),
+            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 16 : 20),
             _buildDaySelector(),
-            const SizedBox(height: 24),
+            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 20 : 24),
             _buildTimeRangePicker(),
-            const SizedBox(height: 32),
+            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 24 : 32),
             _buildTermsCheckbox(),
-            const SizedBox(height: 32),
+            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 24 : 32),
             _buildRegisterButton(),
           ],
         ),
@@ -178,11 +195,198 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     );
   }
 
-  // --- Aesthetic background widgets ---
-  Widget _buildAnimatedGradientBackground() => TweenAnimationBuilder<Alignment>(duration: const Duration(seconds: 20), tween: AlignmentTween(begin: Alignment.topLeft, end: Alignment.bottomRight), builder: (context, alignment, child) => Container(decoration: BoxDecoration(gradient: LinearGradient(begin: alignment, end: -alignment, colors: const [Color(0xFF0F172A), Color(0xFF131c31), Color(0xFF1E293B)]))));
-  Widget _buildAuroraEffect(Color color, Alignment alignment) => Positioned.fill(child: Align(alignment: alignment, child: AspectRatio(aspectRatio: 1, child: Container(decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [color.withAlpha(64), color.withAlpha(0)]))))));
+  Widget _buildTextField(
+      TextEditingController controller,
+      String label,
+      IconData icon, {
+        bool obscureText = false,
+        Widget? suffixIcon,
+        String? Function(String?)? validator,
+      }) {
+    return TextFormField(
+      controller: controller,
+      obscureText: obscureText,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        suffixIcon: suffixIcon,
+      ),
+      validator: validator,
+      onChanged: (_) => _updateButtonState(),
+    );
+  }
 
-  // --- Re-added and Corrected Helper Widgets ---
+  Widget _togglePasswordVisibility() {
+    return IconButton(
+      icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
+      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+    );
+  }
+
+  Widget _buildDropdown() {
+    return DropdownButtonFormField<String>(
+      value: _selectedStream,
+      decoration: InputDecoration(
+        labelText: 'Select Stream',
+        prefixIcon: const Icon(Icons.school_outlined),
+      ),
+      items: _streams.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+      onChanged: (v) => setState(() { _selectedStream = v; _updateButtonState(); }),
+      validator: (v) => v == null ? 'Please select a stream' : null,
+    );
+  }
+
+  Widget _buildSectionHeader(String text) => Align(alignment: Alignment.centerLeft, child: Text(text, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)));
+
+  Widget _buildScoreSlider() {
+    return Slider(
+      value: _examScore,
+      min: 0,
+      max: 100,
+      divisions: 100,
+      label: _examScore.round().toString(),
+      onChanged: (v) => setState(() => _examScore = v),
+    );
+  }
+
+  Widget _buildDaySelector() {
+    return Wrap(
+      spacing: 8,
+      children: _selectedDays.keys.map((day) {
+        final selected = _selectedDays[day]!;
+        return FilterChip(
+          label: Text(day),
+          selected: selected,
+          onSelected: (val) {
+            setState(() { _selectedDays[day] = val; _updateButtonState(); });
+          },
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildTimeRangePicker() {
+    final label = _startTime == null || _endTime == null
+        ? 'Select time range'
+        : '${_startTime!.format(context)} - ${_endTime!.format(context)}';
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white.withAlpha(26),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withAlpha(51)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () async {
+            final result = await time_range.showTimeRangePicker(
+              context: context,
+              start: _startTime,
+              end: _endTime,
+              use24HourFormat: false, // This enables 12-hour format
+              strokeWidth: 2,
+              ticks: 12,
+              ticksColor: Colors.white.withAlpha(102),
+              ticksLength: 15,
+              handlerColor: const Color(0xFF3B82F6),
+              handlerRadius: 8,
+              strokeColor: Colors.white.withAlpha(51),
+              backgroundColor: const Color(0xFF1E1E1E),
+              activeTimeTextStyle: const TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+              timeTextStyle: TextStyle(
+                color: Colors.white.withAlpha(179),
+                fontSize: 16,
+              ),
+            );
+            if (result != null) {
+              setState(() {
+                _startTime = result.startTime;
+                _endTime = result.endTime;
+                _updateButtonState();
+              });
+            }
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.schedule,
+                  color: Colors.white.withAlpha(179),
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: _startTime == null || _endTime == null 
+                          ? Colors.white.withAlpha(179) 
+                          : Colors.white,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_drop_down,
+                  color: Colors.white.withAlpha(179),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTermsCheckbox() {
+    return CheckboxListTile(
+      title: const Text('I accept the Terms and Conditions'),
+      value: _acceptTerms,
+      onChanged: (v) => setState(() => _acceptTerms = v == true ? true : false),
+    );
+  }
+
+  Widget _buildRegisterButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: _isButtonEnabled && !_isLoading ? _handleRegistration : null,
+        child: _isLoading
+            ? const CircularProgressIndicator(color: Colors.white)
+            : const Text('Register'),
+      ),
+    );
+  }
+
+  Widget _buildAnimatedGradientBackground() => TweenAnimationBuilder<Alignment>(
+    tween: AlignmentTween(begin: Alignment.topLeft, end: Alignment.bottomRight),
+    duration: const Duration(seconds: 20),
+    builder: (context, alignment, child) => Container(
+      decoration: BoxDecoration(gradient: LinearGradient(begin: alignment, end: -alignment, colors: const [Color(0xFF0F172A), Color(0xFF131c31), Color(0xFF1E293B)])),
+    ),
+  );
+
+  Widget _buildAuroraEffect(Color color, Alignment alignment) => Positioned.fill(
+    child: Align(
+      alignment: alignment,
+      child: AspectRatio(
+        aspectRatio: 1,
+        child: Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: RadialGradient(colors: [color.withAlpha(64), color.withAlpha(0)]),
+          ),
+        ),
+      ),
+    ),
+  );
 
   void _handleRegistration() async {
     if (!_formKey.currentState!.validate()) {
@@ -190,31 +394,41 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
       return;
     }
     setState(() => _isLoading = true);
-    final String? startTimeString = _startTime?.format(context);
-    final String? endTimeString = _endTime?.format(context);
+    final startTimeString = _startTime?.format(context);
+    final endTimeString = _endTime?.format(context);
 
     try {
-      final userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(email: _emailController.text.trim(), password: _passwordController.text.trim());
-      final List<String> availableDays = _selectedDays.entries.where((e) => e.value).map((e) => e.key).toList();
+      final userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+
+      final availableDays = _selectedDays.entries.where((e) => e.value).map((e) => e.key).toList();
       final userData = {
-        'uid': userCredential.user!.uid, 'name': _nameController.text.trim(),
-        'email': _emailController.text.trim(), 'stream': _selectedStream,
-        'examScore': _examScore.round(), 'createdAt': FieldValue.serverTimestamp(), 'role': 'Student',
-        'availability': { 'days': availableDays, 'startTime': startTimeString, 'endTime': endTimeString }
+        'uid': userCredential.user!.uid,
+        'name': _nameController.text.trim(),
+        'email': _emailController.text.trim(),
+        'stream': _selectedStream,
+        'examScore': _examScore.round(),
+        'createdAt': FieldValue.serverTimestamp(),
+        'role': 'Student',
+        'availability': {
+          'days': availableDays,
+          'startTime': startTimeString,
+          'endTime': endTimeString
+        }
       };
-      await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set(userData);
-      
+
+       await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set(userData);
+
       if (mounted) {
-        Toast.show(context, 'Registration successful! Please log in.', type: ToastType.success);
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
+        Toast.show(context, 'Registration successful! Welcome to the dashboard.', type: ToastType.success);
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const StudentDashboard()));
       }
     } on FirebaseAuthException catch (e) {
       String msg = e.message ?? 'An unknown error occurred.';
-      if (e.code == 'weak-password') {
-        msg = 'The password provided is too weak.';
-      } else if (e.code == 'email-already-in-use') {
-        msg = 'An account already exists for that email.';
-      }
+      if (e.code == 'weak-password') msg = 'The password provided is too weak.';
+      else if (e.code == 'email-already-in-use') msg = 'An account already exists for that email.';
       if (mounted) Toast.show(context, msg, type: ToastType.error);
     } catch (e) {
       if (mounted) Toast.show(context, 'Registration failed. Please try again.', type: ToastType.error);
@@ -222,182 +436,4 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
       if (mounted) setState(() => _isLoading = false);
     }
   }
-
-  Widget _buildRegisterButton() {
-    final bool canPress = _isButtonEnabled && !_isLoading;
-
-    Widget buildChild() {
-      if (_isLoading) {
-        return const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3));
-      }
-      return Text(
-        'Create Account',
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-          color: canPress ? Colors.white : Colors.white.withAlpha(128),
-        ),
-      );
-    }
-
-    return GestureDetector(
-      onTap: canPress ? _handleRegistration : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: canPress ? const Color(0xFF3B82F6) : Colors.transparent,
-          borderRadius: BorderRadius.circular(30),
-          border: canPress ? null : Border.all(color: Colors.white.withAlpha(51)),
-          boxShadow: canPress
-              ? [BoxShadow(color: const Color(0xFF3B82F6).withAlpha(102), blurRadius: 20, offset: const Offset(0, 5))]
-              : [],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(30),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: canPress ? 0 : 4, sigmaY: canPress ? 0 : 4),
-            child: Center(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
-                child: Align(
-                  key: ValueKey('isLoading_$_isLoading'),
-                  alignment: Alignment.center,
-                  child: buildChild(),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildScoreSlider() {
-    return Row(
-      children: [
-        Expanded(
-          child: SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              trackHeight: 6.0,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10.0),
-              overlayShape: const RoundSliderOverlayShape(overlayRadius: 20.0),
-              activeTrackColor: const Color(0xFF3B82F6),
-              inactiveTrackColor: Colors.white.withAlpha(50),
-              thumbColor: Colors.white,
-              overlayColor: const Color(0xFF3B82F6).withAlpha(50),
-              valueIndicatorShape: const PaddleSliderValueIndicatorShape(),
-              valueIndicatorColor: const Color(0xFF3B82F6),
-              valueIndicatorTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-            ),
-            child: Slider(
-              value: _examScore,
-              min: 0,
-              max: 100,
-              divisions: 100,
-              label: "${_examScore.round()}",
-              onChanged: (double value) => setState(() => _examScore = value),
-            ),
-          ),
-        ),
-        const SizedBox(width: 16),
-        Text("${_examScore.round()}%", style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-      ],
-    );
-  }
-
-  Widget _buildDaySelector() {
-    return FormField<bool>(
-      validator: (v) => !_selectedDays.containsValue(true) ? 'Please select at least one day' : null,
-      builder: (state) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 12.0, runSpacing: 12.0, alignment: WrapAlignment.center,
-            children: _selectedDays.keys.map((day) {
-              final isSelected = _selectedDays[day]!;
-              return ChoiceChip(
-                label: Text(day), selected: isSelected, showCheckmark: false,
-                onSelected: (selected) { setState(() { _selectedDays[day] = selected; state.didChange(true); _updateButtonState(); }); },
-                labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.white70, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
-                backgroundColor: Colors.white.withAlpha(20),
-                selectedColor: const Color(0xFF3B82F6),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: isSelected ? Colors.transparent : Colors.white.withAlpha(40))),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              );
-            }).toList(),
-          ),
-          if (state.hasError) Padding(padding: const EdgeInsets.only(top: 10.0, left: 12.0), child: Text(state.errorText!, style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12))),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildTimeRangePicker() {
-    String timeRangeText = 'Select Time Range';
-    if (_startTime != null && _endTime != null) {
-      timeRangeText = '${_startTime!.format(context)} - ${_endTime!.format(context)}';
-    }
-    return FormField<bool>(
-      initialValue: _startTime != null && _endTime != null,
-      validator: (value) => !value! ? 'Please select a time range' : null,
-      builder: (state) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          InkWell(
-            onTap: () => _selectTimeRange(context, state),
-            borderRadius: BorderRadius.circular(12),
-            child: InputDecorator(
-              decoration: InputDecoration(
-                labelText: 'Available Hours', errorText: state.errorText,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                prefixIcon: const Icon(Icons.access_time_filled_rounded),
-              ),
-              child: Text(timeRangeText, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _selectTimeRange(BuildContext context, FormFieldState state) async {
-    final result = await time_range.showTimeRangePicker(context: context, start: _startTime, end: _endTime, use24HourFormat: false);
-    if (result != null) {
-      setState(() {
-        _startTime = result.startTime;
-        _endTime = result.endTime;
-        state.didChange(true);
-        _updateButtonState();
-      });
-    }
-  }
-
-  Widget _buildTermsCheckbox() {
-    return FormField<bool>(
-      validator: (v) => !_acceptTerms ? 'You must accept the terms' : null,
-      builder: (state) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CheckboxListTile(
-            value: _acceptTerms,
-            onChanged: (v) => setState(() { _acceptTerms = v!; state.didChange(v); _updateButtonState(); }),
-            title: const Text('I accept the terms and conditions', style: TextStyle(color: Colors.white70)),
-            controlAffinity: ListTileControlAffinity.leading, contentPadding: EdgeInsets.zero, dense: true,
-            activeColor: const Color(0xFF3B82F6), checkColor: Colors.white,
-          ),
-          if (state.hasError) Padding(padding: const EdgeInsets.only(left: 16.0), child: Text(state.errorText!, style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12))),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader() => const Text('Create Your Account', textAlign: TextAlign.center, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white));
-  Widget _buildSectionHeader(String title) => Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white.withAlpha(204)));
-  Widget _buildTextField(TextEditingController c, String l, IconData i, {bool obscureText = false, Widget? suffixIcon, String? Function(String?)? validator}) => TextFormField(controller: c, obscureText: obscureText, validator: validator, style: const TextStyle(color: Colors.white), decoration: InputDecoration(labelText: l, prefixIcon: Icon(i), suffixIcon: suffixIcon));
-  Widget _buildDropdown() => DropdownButtonFormField<String>(value: _selectedStream, items: _streams.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(), onChanged: (v) => setState(() { _selectedStream = v; _updateButtonState(); }), decoration: const InputDecoration(labelText: 'Select Stream', prefixIcon: Icon(Icons.school_outlined)), validator: (v) => v == null ? 'Please select a stream' : null, dropdownColor: const Color(0xFF1E293B), style: const TextStyle(color: Colors.white));
-  Widget _togglePasswordVisibility() => IconButton(icon: Icon(_obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined), onPressed: () => setState(() => _obscurePassword = !_obscurePassword), color: Colors.white.withAlpha(179));
-  String? _validateEmail(String? v) => (v == null || !RegExp(r".+@.+\..+").hasMatch(v)) ? 'Enter a valid email' : null;
 }

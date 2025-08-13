@@ -15,7 +15,12 @@ class ForgotPasswordScreen extends StatefulWidget {
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _newPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
   bool _isLoading = false;
+  String? _oobCode;
+  bool _isVerifyingCode = false;
+  bool _codeValid = false;
 
   late AnimationController _animationController;
 
@@ -24,11 +29,44 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
     super.initState();
     _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
     _animationController.forward();
+    _checkForOobCode();
+  }
+
+  void _checkForOobCode() async {
+    // Only works on web, for mobile you need to handle deep links differently
+    final uri = Uri.base;
+    final code = uri.queryParameters['oobCode'];
+    if (code != null && code.isNotEmpty) {
+      setState(() {
+        _oobCode = code;
+        _isVerifyingCode = true;
+      });
+      try {
+        await FirebaseAuth.instance.verifyPasswordResetCode(code);
+        if (mounted) {
+          setState(() {
+            _codeValid = true;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          Toast.show(context, 'Invalid or expired reset link.', type: ToastType.error);
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isVerifyingCode = false;
+          });
+        }
+      }
+    }
   }
 
   @override
   void dispose() {
     _emailController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
     _animationController.dispose();
     super.dispose();
   }
@@ -64,6 +102,41 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
     }
   }
 
+  Future<void> _resetPassword() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isLoading = true);
+    try {
+      await FirebaseAuth.instance.confirmPasswordReset(
+        code: _oobCode!,
+        newPassword: _newPasswordController.text.trim(),
+      );
+      if (mounted) {
+        Toast.show(context, 'Password has been reset. Please login.', type: ToastType.success);
+        Navigator.pop(context);
+      }
+    } on FirebaseAuthException catch (e) {
+      String message = 'Failed to reset password.';
+      if (e.code == 'expired-action-code') {
+        message = 'Reset link has expired.';
+      } else if (e.code == 'invalid-action-code') {
+        message = 'Invalid reset link.';
+      } else if (e.code == 'weak-password') {
+        message = 'Password is too weak.';
+      }
+      if (mounted) {
+        Toast.show(context, message, type: ToastType.error);
+      }
+    } catch (e) {
+      if (mounted) {
+        Toast.show(context, 'Failed to reset password.', type: ToastType.error);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AppLayout(
@@ -77,7 +150,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 400),
-                child: _buildAnimatedGlassForm(),
+                child: _oobCode != null ? _buildResetPasswordForm() : _buildAnimatedGlassForm(),
               ),
             ),
           ),
@@ -174,6 +247,100 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResetPasswordForm() {
+    if (_isVerifyingCode) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (!_codeValid) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: const [
+          Text('Invalid or expired reset link.', style: TextStyle(color: Colors.white, fontSize: 18)),
+        ],
+      );
+    }
+    return FadeTransition(
+      opacity: _animationController,
+      child: SlideTransition(
+        position: Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(_animationController),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [Colors.white.withAlpha(26), Colors.white.withAlpha(13)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.white.withAlpha(38), width: 1),
+              ),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Set New Password', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
+                    const SizedBox(height: 8),
+                    Text('Enter your new password below.', style: TextStyle(color: Colors.white70, fontSize: 16)),
+                    const SizedBox(height: 32),
+                    TextFormField(
+                      controller: _newPasswordController,
+                      obscureText: true,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(labelText: 'New Password', prefixIcon: Icon(Icons.lock_outline)),
+                      validator: (v) {
+                        if (v == null || v.length < 6) {
+                          return 'Password must be at least 6 characters';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _confirmPasswordController,
+                      obscureText: true,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(labelText: 'Confirm Password', prefixIcon: Icon(Icons.lock_outline)),
+                      validator: (v) {
+                        if (v != _newPasswordController.text) {
+                          return 'Passwords do not match';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 32),
+                    GestureDetector(
+                      onTap: _isLoading ? null : _resetPassword,
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF3B82F6),
+                          borderRadius: BorderRadius.circular(30),
+                          boxShadow: [BoxShadow(color: const Color(0xFF3B82F6).withAlpha(102), blurRadius: 20, offset: const Offset(0, 5))],
+                        ),
+                        child: Center(
+                          child: _isLoading
+                              ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
+                              : const Text('Reset Password', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Text('Back to Login', style: TextStyle(color: Colors.white.withAlpha(179))),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );

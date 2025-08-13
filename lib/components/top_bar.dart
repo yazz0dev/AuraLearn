@@ -18,8 +18,8 @@ class TopNavigationBar extends StatelessWidget {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
         child: Container(
-          height: 80,
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          height: 60,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
@@ -65,13 +65,12 @@ class TopNavigationBar extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min, // Ensure the Row doesn't expand unnecessarily
       children: [
-        const Icon(Icons.school, color: Colors.white, size: 28),
-        const SizedBox(width: 12),
-        // This text is now less likely to be truncated.
+        const Icon(Icons.school, color: Colors.white, size: 24),
+        const SizedBox(width: 8),
         Text(
           'AuraLearn',
           style: const TextStyle(
-            fontSize: 24,
+            fontSize: 20,
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
@@ -110,8 +109,8 @@ class TopNavigationBar extends StatelessWidget {
           child: Container(
             // --- FIX: Reduced padding to make buttons smaller ---
             padding: EdgeInsets.symmetric(
-              horizontal: isSmall ? 14 : 20,
-              vertical: isSmall ? 8 : 10,
+              horizontal: isSmall ? 12 : 16,
+              vertical: isSmall ? 6 : 8,
             ),
             decoration: BoxDecoration(
               gradient: LinearGradient(

@@ -30,7 +30,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
+    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
     _animationController.forward();
   }
 
@@ -118,7 +118,12 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           _buildAuroraEffect(const Color(0xFF8B5CF6), Alignment.bottomLeft),
           Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              padding: EdgeInsets.only(
+                left: MediaQuery.of(context).size.width < 400 ? 16 : 20,
+                right: MediaQuery.of(context).size.width < 400 ? 16 : 20,
+                top: 80, // Space for top bar
+                bottom: 20,
+              ),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 400),
                 child: _buildAnimatedGlassForm(),
@@ -134,16 +139,21 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     return FadeTransition(
       opacity: _animationController,
       child: SlideTransition(
-        position: Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(_animationController),
+        position: Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
+          CurvedAnimation(parent: _animationController, curve: Curves.easeOutQuart)
+        ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(24),
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
+              padding: EdgeInsets.symmetric(
+                horizontal: MediaQuery.of(context).size.width < 400 ? 20 : 28, 
+                vertical: MediaQuery.of(context).size.width < 400 ? 24 : 32
+              ),
               decoration: BoxDecoration(
                 gradient: LinearGradient(colors: [Colors.white.withAlpha(26), Colors.white.withAlpha(13)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(MediaQuery.of(context).size.width < 400 ? 20 : 24),
                 border: Border.all(color: Colors.white.withAlpha(38), width: 1),
               ),
               child: Form(
@@ -168,16 +178,23 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             child: FadeInAnimation(child: widget),
           ),
           children: [
-            const Text(
+            Text(
               'Welcome Back',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+              style: TextStyle(
+                fontSize: MediaQuery.of(context).size.width < 400 ? 24 : 28, 
+                fontWeight: FontWeight.bold, 
+                color: Colors.white
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               'Sign in to continue your journey',
-              style: TextStyle(color: Colors.white.withAlpha(179), fontSize: 16),
+              style: TextStyle(
+                color: Colors.white.withAlpha(179), 
+                fontSize: MediaQuery.of(context).size.width < 400 ? 14 : 16
+              ),
             ),
-            const SizedBox(height: 32),
+            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 24 : 32),
             TextFormField(
               controller: _emailController,
               style: const TextStyle(color: Colors.white),
@@ -185,7 +202,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               validator: (v) => (v == null || !v.contains('@')) ? 'Please enter a valid email' : null,
               keyboardType: TextInputType.emailAddress,
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 12 : 16),
             TextFormField(
               controller: _passwordController,
               obscureText: _obscurePassword,
@@ -201,7 +218,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               ),
               validator: (v) => (v == null || v.isEmpty) ? 'Please enter your password' : null,
             ),
-            const SizedBox(height: 32),
+            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 24 : 32),
             GestureDetector(
               onTap: _isLoading ? null : _login,
               child: Container(
@@ -219,7 +236,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 20 : 24),
             // --- FIX: Updated onTap to navigate to the ForgotPasswordScreen ---
             GestureDetector(
               onTap: () {

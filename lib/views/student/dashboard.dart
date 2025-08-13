@@ -19,22 +19,43 @@ class _StudentDashboardState extends State<StudentDashboard> {
       appBarTitle: 'Dashboard',
       appBarActions: [
         Padding(
-          padding: const EdgeInsets.only(right: 4.0, top: 4.0, bottom: 4.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const CircleAvatar(
-                // --- FIX: Reduced radius slightly to fix the 1px overflow ---
-                radius: 17, 
-                backgroundColor: Colors.blueGrey,
-                backgroundImage: NetworkImage('https://picsum.photos/seed/student_avatar/150/150'),
-              ),
-              Text(
-                'profile',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 10),
-              ),
-            ],
+          padding: const EdgeInsets.only(right: 12.0),
+          child: GestureDetector(
+            onTap: () {
+              // TODO: Navigate to profile screen
+            },
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Student Name',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      'View Profile',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontSize: 12,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 8),
+                const CircleAvatar(
+                  radius: 18,
+                  backgroundColor: Colors.blueGrey,
+                  backgroundImage: NetworkImage('https://picsum.photos/seed/student_avatar/150/150'),
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -146,4 +167,6 @@ class _StudentDashboardState extends State<StudentDashboard> {
       ],
     );
   }
+
+
 }

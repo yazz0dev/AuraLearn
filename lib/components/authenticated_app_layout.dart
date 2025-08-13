@@ -1,4 +1,5 @@
 import 'package:auralearn/components/toast.dart';
+import 'package:auralearn/views/landing.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'bottom_bar.dart';
@@ -28,6 +29,11 @@ class AuthenticatedAppLayout extends StatelessWidget {
       await FirebaseAuth.instance.signOut();
       if (context.mounted) {
         Toast.show(context, 'Logged out successfully', type: ToastType.success);
+        // Navigate to landing screen and clear navigation stack
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LandingScreen()),
+          (route) => false,
+        );
       }
     } catch (e) {
       if (context.mounted) {

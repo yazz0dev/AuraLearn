@@ -43,9 +43,12 @@ class AppLayout extends StatelessWidget {
             top: 0,
             left: 0,
             right: 0,
-            child: TopNavigationBar(
-              onLoginTap: handleLogin,
-              onRegisterTap: handleRegister,
+            child: SafeArea(
+              bottom: false,
+              child: TopNavigationBar(
+                onLoginTap: handleLogin,
+                onRegisterTap: handleRegister,
+              ),
             ),
           ),
         ],

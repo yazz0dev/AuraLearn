@@ -24,16 +24,62 @@ class AuthenticatedAppLayout extends StatelessWidget {
     this.showBottomBar = true, // FIX: Defines the parameter in the constructor
   });
 
-  // --- FIX: Updated logout handler to use go_router ---
   Future<void> _handleLogout(BuildContext context) async {
+    debugPrint('Logout button pressed');
+    
+    // Show confirmation dialog
+    final bool? shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1E1E1E),
+          title: const Text('Confirm Logout', style: TextStyle(color: Colors.white)),
+          content: const Text(
+            'Are you sure you want to log out?',
+            style: TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Logout'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldLogout != true) {
+      debugPrint('Logout cancelled by user');
+      return;
+    }
+
+    debugPrint('Attempting to sign out...');
     try {
       await FirebaseAuth.instance.signOut();
+      debugPrint('Firebase sign out successful');
       if (context.mounted) {
         Toast.show(context, 'Logged out successfully', type: ToastType.success);
-        // Navigate to the home route, the redirect logic will handle showing the landing screen.
-        context.goNamed('home');
+        debugPrint('Navigating to landing screen...');
+        
+        // Wait a brief moment for the auth state to update, then navigate
+        await Future.delayed(const Duration(milliseconds: 100));
+        
+        if (context.mounted) {
+          // Use go instead of goNamed to ensure we hit the root route
+          context.go('/');
+          debugPrint('Navigation to "/" completed');
+        }
       }
     } catch (e) {
+      debugPrint('Logout error: $e');
       if (context.mounted) {
         Toast.show(context, 'Failed to log out. Please try again.', type: ToastType.error);
       }
@@ -86,10 +132,13 @@ class AuthenticatedAppLayout extends StatelessWidget {
         appBar: AppBar(
           title: Text(appBarTitle),
           actions: [
-            ...?appBarActions, 
+            if (appBarActions != null) ...appBarActions!,
             IconButton(
               icon: const Icon(Icons.logout),
-              onPressed: () => _handleLogout(context),
+              onPressed: () {
+                debugPrint('Logout icon button tapped');
+                _handleLogout(context);
+              },
               tooltip: 'Logout',
             ),
             const SizedBox(width: 8),

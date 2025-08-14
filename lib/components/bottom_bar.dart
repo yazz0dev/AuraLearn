@@ -87,9 +87,15 @@ class SharedBottomBar extends StatelessWidget {
       }
     }
 
+    final items = getItemsForRole();
+    final safeCurrentIndex = currentIndex >= items.length ? 0 : currentIndex;
+
     return BottomNavigationBar(
-      currentIndex: currentIndex,
-      onTap: onTap,
+      currentIndex: safeCurrentIndex,
+      onTap: (index) {
+        debugPrint('Bottom nav tapped: index=$index, role=$role');
+        onTap(index);
+      },
       backgroundColor: backgroundColor,
       type: BottomNavigationBarType.fixed,
       selectedItemColor: selectedColor,
@@ -97,7 +103,7 @@ class SharedBottomBar extends StatelessWidget {
       selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
       unselectedLabelStyle: const TextStyle(fontSize: 12),
       elevation: 8,
-      items: getItemsForRole(),
+      items: items,
     );
   }
 }

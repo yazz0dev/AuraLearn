@@ -20,7 +20,7 @@ class _LandingScreenState extends State<LandingScreen> with TickerProviderStateM
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(duration: const Duration(milliseconds: 1200), vsync: this);
+    _controller = AnimationController(duration: const Duration(milliseconds: 800), vsync: this);
     _scrollController1 = ScrollController();
     _scrollController2 = ScrollController();
 
@@ -28,8 +28,8 @@ class _LandingScreenState extends State<LandingScreen> with TickerProviderStateM
 
     // Start the marquee animations after the first frame is rendered
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _startMarquee(_scrollController1, 30);
-      _startMarquee(_scrollController2, 35, reverse: true);
+      _startMarquee(_scrollController1, 25);
+      _startMarquee(_scrollController2, 30, reverse: true);
     });
   }
 
@@ -80,14 +80,13 @@ class _LandingScreenState extends State<LandingScreen> with TickerProviderStateM
   }) {
     final animation = CurvedAnimation(
       parent: _controller,
-      // --- FIX: Smoother and slightly faster animation curve ---
-      curve: Interval(intervalStart, intervalEnd, curve: Curves.easeOutCubic),
+      curve: Interval(intervalStart, intervalEnd, curve: Curves.easeOut),
     );
     return FadeTransition(
       opacity: animation,
       child: SlideTransition(
         position: Tween<Offset>(
-          begin: const Offset(0, 0.2),
+          begin: const Offset(0, 0.1),
           end: Offset.zero,
         ).animate(animation),
         child: child,

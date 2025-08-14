@@ -1,11 +1,11 @@
 import 'package:auralearn/components/authenticated_app_layout.dart';
 import 'package:auralearn/components/toast.dart';
-import 'package:auralearn/views/admin/dashboard_admin.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:go_router/go_router.dart';
 import '../../components/bottom_bar.dart';
 
 class UserManagementScreen extends StatefulWidget {
@@ -37,21 +37,18 @@ class _UserManagementScreenState extends State<UserManagementScreen> with Ticker
   void _onNavigate(int index) {
     if (index == _currentIndex) return;
 
-    if (index == 0) {
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const DashboardAdmin(),
-          transitionDuration: const Duration(milliseconds: 200),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-        ),
-      );
-    } else {
-      setState(() {
-        _currentIndex = index;
-      });
+    setState(() {
+      _currentIndex = index;
+    });
+
+    switch (index) {
+      case 0:
+        // Navigate back to admin dashboard
+        context.go('/admin/dashboard');
+        break;
+      case 1:
+        // Users - already here, no navigation needed
+        break;
     }
   }
 

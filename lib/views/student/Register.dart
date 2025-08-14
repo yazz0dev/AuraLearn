@@ -1,5 +1,4 @@
 import 'dart:ui';
-import 'package:auralearn/views/student/dashboard.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -43,7 +42,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
+    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
     _addListeners();
     _animationController.forward();
   }
@@ -120,8 +119,8 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     return FadeTransition(
       opacity: _animationController,
       child: SlideTransition(
-        position: Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
-          CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic)
+        position: Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(
+          CurvedAnimation(parent: _animationController, curve: Curves.easeOut)
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(24),
@@ -153,9 +152,9 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     return AnimationLimiter(
       child: Column(
         children: AnimationConfiguration.toStaggeredList(
-          duration: const Duration(milliseconds: 500),
+          duration: const Duration(milliseconds: 300),
           childAnimationBuilder: (widget) => SlideAnimation(
-            verticalOffset: 50.0,
+            verticalOffset: 20.0,
             child: FadeInAnimation(child: widget),
           ),
           children: [

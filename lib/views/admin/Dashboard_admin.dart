@@ -46,18 +46,21 @@ class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStat
   }
 
 
-  // --- FIX: Updated navigation to use go_router ---
   void _onNavigate(int index) {
     if (index == _currentIndex) return;
 
-    if (index == 1) {
-      // Go to the user management screen
-      context.goNamed('admin-users');
-    } else {
-      // Stay on the dashboard (or handle other tabs if they existed)
-      setState(() {
-        _currentIndex = index;
-      });
+    setState(() {
+      _currentIndex = index;
+    });
+
+    switch (index) {
+      case 0:
+        // Dashboard - already here, no navigation needed
+        break;
+      case 1:
+        // Navigate to user management screen
+        context.go('/admin/users');
+        break;
     }
   }
 
@@ -89,9 +92,9 @@ class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStat
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: AnimationConfiguration.toStaggeredList(
-                  duration: const Duration(milliseconds: 375),
+                  duration: const Duration(milliseconds: 200),
                   childAnimationBuilder: (widget) => SlideAnimation(
-                    verticalOffset: 50.0,
+                    verticalOffset: 15.0,
                     child: FadeInAnimation(child: widget),
                   ),
                   children: [
@@ -125,13 +128,9 @@ class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStat
                       ),
                     ),
                     const SizedBox(height: 24),
-                    _buildStatRow('Active Students This Week', '**'),
-                    const SizedBox(height: 8),
                     _buildStatRow('Students', '${counts['students']}'),
                     const SizedBox(height: 8),
                     _buildStatRow('KPs', '${counts['kps']}'),
-                    const SizedBox(height: 8),
-                    _buildStatRow('Subjects', '*'),
                     const SizedBox(height: 28),
                     const Text('Platform Management', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
                     const SizedBox(height: 16),
@@ -142,7 +141,7 @@ class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStat
                             color: const Color(0xFF2C2C2C),
                             iconColor: Colors.grey.shade800,
                             title: 'Manage Subjects',
-                            subtitle: '* Subjects',
+                            subtitle: 'Coming Soon',
                           ),
                         ),
                         const SizedBox(width: 16),
@@ -159,7 +158,7 @@ class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStat
                     const SizedBox(height: 32),
                     const Text('Review Queue', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
                     const SizedBox(height: 16),
-                    _buildReviewQueueCard(),
+                    _buildEmptyStateCard('No items in review queue'),
                     const SizedBox(height: 32),
                   ],
                 ),
@@ -287,48 +286,35 @@ class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStat
     );
   }
 
-  Widget _buildReviewQueueCard() {
+  Widget _buildEmptyStateCard(String message) {
     return Container(
       height: 80,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.teal.withAlpha(25),
+        color: Colors.grey.withAlpha(25),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white12),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: Colors.teal.withAlpha(76),
-              borderRadius: BorderRadius.circular(12),
+      child: Center(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.inbox_outlined,
+              color: Colors.white.withAlpha(128),
+              size: 24,
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Text(
-                    'Subject', 
-                    style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'X Chunks Awaiting Approval', 
-                    style: TextStyle(fontSize: 12, color: Colors.white70),
-                  ),
-                ],
+            const SizedBox(width: 12),
+            Text(
+              message,
+              style: TextStyle(
+                color: Colors.white.withAlpha(179),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

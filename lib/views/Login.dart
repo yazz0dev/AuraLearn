@@ -30,8 +30,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
-    // --- FIX: Increased animation speed for a snappier feel ---
-    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
+    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
     _animationController.forward();
   }
 
@@ -140,9 +139,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     return FadeTransition(
       opacity: _animationController,
       child: SlideTransition(
-        position: Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
-          // --- FIX: Smoother animation curve ---
-          CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic)
+        position: Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(
+          CurvedAnimation(parent: _animationController, curve: Curves.easeOut)
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(24),
@@ -174,9 +172,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: AnimationConfiguration.toStaggeredList(
-          duration: const Duration(milliseconds: 500),
+          duration: const Duration(milliseconds: 300),
           childAnimationBuilder: (widget) => SlideAnimation(
-            verticalOffset: 50.0,
+            verticalOffset: 20.0,
             child: FadeInAnimation(child: widget),
           ),
           children: [

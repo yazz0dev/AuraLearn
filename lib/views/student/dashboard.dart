@@ -1,6 +1,10 @@
 import 'package:auralearn/components/authenticated_app_layout.dart';
 import 'package:auralearn/components/bottom_bar.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:go_router/go_router.dart';
 
 class StudentDashboard extends StatefulWidget {
   const StudentDashboard({super.key});
@@ -9,8 +13,52 @@ class StudentDashboard extends StatefulWidget {
   State<StudentDashboard> createState() => _StudentDashboardState();
 }
 
-class _StudentDashboardState extends State<StudentDashboard> {
+class _StudentDashboardState extends State<StudentDashboard> with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
+  late AnimationController _animationController;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  void _onBottomNavTap(int index) {
+    if (index == _currentIndex) return;
+    
+    setState(() {
+      _currentIndex = index;
+    });
+    
+    // Handle navigation based on index
+    switch (index) {
+      case 0:
+        // Dashboard - already here
+        break;
+      case 1:
+        // Subjects - navigate to subjects screen
+        // TODO: Implement subjects navigation
+        break;
+      case 2:
+        // Schedule - navigate to schedule screen
+        // TODO: Implement schedule navigation
+        break;
+      case 3:
+        // Progress - navigate to progress screen
+        // TODO: Implement progress navigation
+        break;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,105 +66,95 @@ class _StudentDashboardState extends State<StudentDashboard> {
       role: UserRole.student,
       appBarTitle: 'Dashboard',
       appBarActions: [
-        Padding(
-          padding: const EdgeInsets.only(right: 12.0),
-          child: GestureDetector(
-            onTap: () {
-              // TODO: Navigate to profile screen
-            },
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      'Student Name',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Text(
-                      'View Profile',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontSize: 12,
-                        color: Colors.white70,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 8),
-                const CircleAvatar(
-                  radius: 18,
-                  backgroundColor: Colors.blueGrey,
-                  backgroundImage: NetworkImage('https://picsum.photos/seed/student_avatar/150/150'),
-                ),
-              ],
+        PopupMenuButton<String>(
+          onSelected: (value) async {
+            switch (value) {
+              case 'profile':
+                // TODO: Navigate to profile screen
+                break;
+              case 'settings':
+                // TODO: Navigate to settings screen
+                break;
+
+            }
+          },
+          itemBuilder: (BuildContext context) => [
+            const PopupMenuItem<String>(
+              value: 'profile',
+              child: Row(
+                children: [
+                  Icon(Icons.person, color: Colors.white70),
+                  SizedBox(width: 8),
+                  Text('Profile', style: TextStyle(color: Colors.white)),
+                ],
+              ),
             ),
+            const PopupMenuItem<String>(
+              value: 'settings',
+              child: Row(
+                children: [
+                  Icon(Icons.settings, color: Colors.white70),
+                  SizedBox(width: 8),
+                  Text('Settings', style: TextStyle(color: Colors.white)),
+                ],
+              ),
+            ),
+
+          ],
+          color: const Color(0xFF2C2C2C),
+          icon: const CircleAvatar(
+            radius: 16,
+            backgroundColor: Colors.blueGrey,
+            backgroundImage: NetworkImage('https://picsum.photos/seed/student_avatar/150/150'),
           ),
         ),
       ],
       bottomNavIndex: _currentIndex,
-      onBottomNavTap: (index) => setState(() => _currentIndex = index),
+      onBottomNavTap: _onBottomNavTap,
       child: _buildBody(),
     );
   }
 
   Widget _buildBody() {
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      children: [
-        const SizedBox(height: 20),
-        Text(
-          'Welcome back, Name!',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 26),
+    return AnimationLimiter(
+      child: ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        children: AnimationConfiguration.toStaggeredList(
+          duration: const Duration(milliseconds: 200),
+          childAnimationBuilder: (widget) => SlideAnimation(
+            verticalOffset: 15.0,
+            child: FadeInAnimation(child: widget),
+          ),
+          children: [
+            const SizedBox(height: 20),
+            FutureBuilder<String>(
+              future: _getUserName(),
+              builder: (context, snapshot) {
+                final name = snapshot.data ?? 'Student';
+                return Text(
+                  'Welcome back, $name!',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 26),
+                );
+              },
+            ),
+            const SizedBox(height: 30),
+            _buildSubjectCard(),
+            const SizedBox(height: 30),
+            _buildProgressSection(),
+            const SizedBox(height: 30),
+            _buildUpcomingTopicsSection(),
+            const SizedBox(height: 20),
+          ],
         ),
-        const SizedBox(height: 30),
-        _buildSubjectCard(),
-        const SizedBox(height: 30),
-        _buildProgressSection(),
-        const SizedBox(height: 30),
-        _buildUpcomingTopicsSection(),
-        const SizedBox(height: 20),
-      ],
+      ),
     );
   }
 
   Widget _buildSubjectCard() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Subject Name', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontSize: 18)),
-                  const SizedBox(height: 4),
-                  Text('description', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 14)),
-                  const SizedBox(height: 8),
-                  Text('X lessons', style: Theme.of(context).textTheme.bodySmall),
-                ],
-              ),
-            ),
-            const SizedBox(width: 16),
-            ElevatedButton(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).primaryColor,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
-              child: const Text('Start Learning'),
-            ),
-          ],
-        ),
-      ),
+    return _buildEmptyStateCard(
+      'No subjects assigned yet',
+      'Contact your administrator to get started with your learning journey.',
+      Icons.school_outlined,
     );
   }
 
@@ -126,47 +164,81 @@ class _StudentDashboardState extends State<StudentDashboard> {
       children: [
         Text('Progress', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontSize: 22)),
         const SizedBox(height: 16),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Topics Mastered', style: Theme.of(context).textTheme.bodyMedium),
-            Text('5 / 12', style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500)),
-          ],
-        ),
-        const SizedBox(height: 8),
-        LinearProgressIndicator(
-          value: 5 / 12,
-          backgroundColor: Theme.of(context).progressIndicatorTheme.linearTrackColor,
-          valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
-          minHeight: 6,
-          borderRadius: BorderRadius.circular(3),
+        _buildEmptyStateCard(
+          'No progress to show',
+          'Start learning to track your progress here.',
+          Icons.bar_chart_outlined,
         ),
       ],
     );
   }
 
   Widget _buildUpcomingTopicsSection() {
-    final topics = ['Topic 1', 'Topic 2', 'Topic 3'];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Upcoming Topics', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontSize: 22)),
         const SizedBox(height: 16),
-        ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: topics.length,
-          itemBuilder: (context, index) {
-            return ListTile(
-              title: Text(topics[index], style: const TextStyle(fontWeight: FontWeight.w500)),
-              contentPadding: EdgeInsets.zero,
-            );
-          },
-          separatorBuilder: (context, index) => const Divider(height: 1),
+        _buildEmptyStateCard(
+          'No upcoming topics',
+          'Topics will appear here once you start a subject.',
+          Icons.calendar_today_outlined,
         ),
       ],
     );
   }
 
+  Future<String> _getUserName() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return 'Student';
+      
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      
+      if (doc.exists && doc.data() != null) {
+        return doc.data()!['name'] ?? 'Student';
+      }
+      return 'Student';
+    } catch (e) {
+      debugPrint('Error fetching user name: $e');
+      return 'Student';
+    }
+  }
 
+  Widget _buildEmptyStateCard(String title, String subtitle, IconData icon) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              size: 48,
+              color: Colors.white.withAlpha(128),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              subtitle,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Colors.white70,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

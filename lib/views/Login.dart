@@ -8,7 +8,6 @@ import 'package:auralearn/views/student/register.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import '../components/app_layout.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -136,30 +135,34 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   }
 
   Widget _buildAnimatedGlassForm() {
-    return FadeTransition(
-      opacity: _animationController,
-      child: SlideTransition(
-        position: Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(
-          CurvedAnimation(parent: _animationController, curve: Curves.easeOut)
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: MediaQuery.of(context).size.width < 400 ? 20 : 28, 
-                vertical: MediaQuery.of(context).size.width < 400 ? 24 : 32
-              ),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [Colors.white.withAlpha(26), Colors.white.withAlpha(13)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                borderRadius: BorderRadius.circular(MediaQuery.of(context).size.width < 400 ? 20 : 24),
-                border: Border.all(color: Colors.white.withAlpha(38), width: 1),
-              ),
-              child: Form(
-                key: _formKey,
-                child: _buildFormContents(),
-              ),
+    return AnimatedBuilder(
+      animation: _animationController,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _animationController.value,
+          child: Transform.translate(
+            offset: Offset(0, (1 - _animationController.value) * 20),
+            child: child,
+          ),
+        );
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: MediaQuery.of(context).size.width < 400 ? 20 : 28, 
+              vertical: MediaQuery.of(context).size.width < 400 ? 24 : 32
+            ),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [Colors.white.withAlpha(26), Colors.white.withAlpha(13)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+              borderRadius: BorderRadius.circular(MediaQuery.of(context).size.width < 400 ? 20 : 24),
+              border: Border.all(color: Colors.white.withAlpha(38), width: 1),
+            ),
+            child: Form(
+              key: _formKey,
+              child: _buildFormContents(),
             ),
           ),
         ),
@@ -168,16 +171,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   }
 
   Widget _buildFormContents() {
-    return AnimationLimiter(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: AnimationConfiguration.toStaggeredList(
-          duration: const Duration(milliseconds: 300),
-          childAnimationBuilder: (widget) => SlideAnimation(
-            verticalOffset: 20.0,
-            child: FadeInAnimation(child: widget),
-          ),
-          children: [
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
             Text(
               'Welcome Back',
               style: TextStyle(
@@ -267,11 +263,33 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               ],
             ),
           ],
-        ),
-      ),
     );
   }
 
-  Widget _buildAnimatedGradientBackground() => TweenAnimationBuilder<Alignment>(duration: const Duration(seconds: 20), tween: AlignmentTween(begin: Alignment.topLeft, end: Alignment.bottomRight), builder: (context, alignment, child) => Container(decoration: BoxDecoration(gradient: LinearGradient(begin: alignment, end: -alignment, colors: const [Color(0xFF0F172A), Color(0xFF131c31), Color(0xFF1E293B)]))));
-  Widget _buildAuroraEffect(Color color, Alignment alignment) => Positioned.fill(child: Align(alignment: alignment, child: AspectRatio(aspectRatio: 1, child: Container(decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [color.withAlpha(64), color.withAlpha(0)]))))));
+  Widget _buildAnimatedGradientBackground() => Container(
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFF0F172A), Color(0xFF131c31), Color(0xFF1E293B)],
+      ),
+    ),
+  );
+
+  Widget _buildAuroraEffect(Color color, Alignment alignment) => Positioned.fill(
+    child: Align(
+      alignment: alignment,
+      child: AspectRatio(
+        aspectRatio: 1,
+        child: Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: RadialGradient(
+              colors: [color.withAlpha(64), color.withAlpha(0)],
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
 }

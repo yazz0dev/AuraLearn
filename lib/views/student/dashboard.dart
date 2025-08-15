@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:go_router/go_router.dart';
+import 'profile.dart';
 
 class StudentDashboard extends StatefulWidget {
   const StudentDashboard({super.key});
@@ -66,46 +66,18 @@ class _StudentDashboardState extends State<StudentDashboard> with SingleTickerPr
       role: UserRole.student,
       appBarTitle: 'Dashboard',
       appBarActions: [
-        PopupMenuButton<String>(
-          onSelected: (value) async {
-            switch (value) {
-              case 'profile':
-                // TODO: Navigate to profile screen
-                break;
-              case 'settings':
-                // TODO: Navigate to settings screen
-                break;
-
-            }
+        GestureDetector(
+          onTap: () {
+            if (!mounted) return;
+            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProfilePage()));
           },
-          itemBuilder: (BuildContext context) => [
-            const PopupMenuItem<String>(
-              value: 'profile',
-              child: Row(
-                children: [
-                  Icon(Icons.person, color: Colors.white70),
-                  SizedBox(width: 8),
-                  Text('Profile', style: TextStyle(color: Colors.white)),
-                ],
-              ),
+          child: const Padding(
+            padding: EdgeInsets.only(right: 12.0),
+            child: CircleAvatar(
+              radius: 16,
+              backgroundColor: Colors.blueGrey,
+              backgroundImage: NetworkImage('https://picsum.photos/seed/student_avatar/150/150'),
             ),
-            const PopupMenuItem<String>(
-              value: 'settings',
-              child: Row(
-                children: [
-                  Icon(Icons.settings, color: Colors.white70),
-                  SizedBox(width: 8),
-                  Text('Settings', style: TextStyle(color: Colors.white)),
-                ],
-              ),
-            ),
-
-          ],
-          color: const Color(0xFF2C2C2C),
-          icon: const CircleAvatar(
-            radius: 16,
-            backgroundColor: Colors.blueGrey,
-            backgroundImage: NetworkImage('https://picsum.photos/seed/student_avatar/150/150'),
           ),
         ),
       ],

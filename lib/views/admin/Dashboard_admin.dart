@@ -142,6 +142,10 @@ class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStat
                             iconColor: Colors.grey.shade800,
                             title: 'Manage Subjects',
                             subtitle: 'Coming Soon',
+                            onTap: () {
+                              if (!mounted) return;
+                              context.go('/admin/create-subject');
+                            },
                           ),
                         ),
                         const SizedBox(width: 16),
@@ -151,9 +155,38 @@ class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStat
                             iconColor: Colors.green.withAlpha(76),
                             title: 'Manage Users',
                             subtitle: '${counts['total']} Users',
+                            onTap: () {
+                              if (!mounted) return;
+                              context.go('/admin/users');
+                            },
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 20),
+                    // Review Content card (full width)
+                    GestureDetector(
+                      onTap: () {
+                        if (!mounted) return;
+                        context.go('/admin/review-content');
+                      },
+                      child: Container(
+                        height: 72,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white12,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.white12),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(width: 56, height: 56, decoration: BoxDecoration(color: Colors.pink.withAlpha(60), borderRadius: BorderRadius.circular(12))),
+                            const SizedBox(width: 12),
+                            Expanded(child: Text('Review Content', style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white))),
+                            const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.white70),
+                          ],
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 32),
                     const Text('Review Queue', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
@@ -243,48 +276,51 @@ class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStat
     );
   }
 
-  Widget _buildManagementCard({required Color color, required Color iconColor, required String title, required String subtitle}) {
-    return Container(
-      height: 80,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white12),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(color: iconColor, borderRadius: BorderRadius.circular(12)),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(fontSize: 12, color: Colors.white70),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+  Widget _buildManagementCard({required Color color, required Color iconColor, required String title, required String subtitle, VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+       height: 80,
+       padding: const EdgeInsets.all(12),
+       decoration: BoxDecoration(
+         color: color,
+         borderRadius: BorderRadius.circular(16),
+         border: Border.all(color: Colors.white12),
+       ),
+       child: Row(
+         children: [
+           Container(
+             width: 56,
+             height: 56,
+             decoration: BoxDecoration(color: iconColor, borderRadius: BorderRadius.circular(12)),
+           ),
+           const SizedBox(width: 12),
+           Expanded(
+             child: FittedBox(
+               fit: BoxFit.scaleDown,
+               alignment: Alignment.centerLeft,
+               child: Column(
+                 crossAxisAlignment: CrossAxisAlignment.start,
+                 mainAxisSize: MainAxisSize.min,
+                 children: [
+                   Text(
+                     title,
+                     style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+                   ),
+                   const SizedBox(height: 4),
+                   Text(
+                     subtitle,
+                     style: const TextStyle(fontSize: 12, color: Colors.white70),
+                   ),
+                 ],
+               ),
+             ),
+           ),
+         ],
+       ),
+     )
     );
-  }
+   }
 
   Widget _buildEmptyStateCard(String message) {
     return Container(

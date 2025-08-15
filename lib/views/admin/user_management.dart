@@ -97,7 +97,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> with Ticker
                       ),
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
-                        value: newRole,
+                        initialValue: newRole,
                         dropdownColor: const Color(0xFF2C2C2C),
                         style: const TextStyle(color: Colors.white),
                         items: ['KP', 'Admin'].map((role) => DropdownMenuItem(value: role, child: Text(role))).toList(),

@@ -1,8 +1,8 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:time_range_picker/time_range_picker.dart' as time_range;
 import '../../components/app_layout.dart';
@@ -48,14 +48,21 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
   }
 
   void _addListeners() {
-    _nameController.addListener(_updateButtonState);
-    _emailController.addListener(_updateButtonState);
-    _passwordController.addListener(_updateButtonState);
-    _confirmPasswordController.addListener(_updateButtonState);
+    _nameController.addListener(_debounceUpdateButtonState);
+    _emailController.addListener(_debounceUpdateButtonState);
+    _passwordController.addListener(_debounceUpdateButtonState);
+    _confirmPasswordController.addListener(_debounceUpdateButtonState);
+  }
+
+  Timer? _debounceTimer;
+  void _debounceUpdateButtonState() {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 300), _updateButtonState);
   }
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -116,31 +123,35 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
   }
 
   Widget _buildAnimatedGlassForm() {
-    return FadeTransition(
-      opacity: _animationController,
-      child: SlideTransition(
-        position: Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(
-          CurvedAnimation(parent: _animationController, curve: Curves.easeOut)
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: MediaQuery.of(context).size.width < 400 ? 20 : 28, 
-                vertical: MediaQuery.of(context).size.width < 400 ? 24 : 32
-              ),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [Colors.white.withAlpha(26), Colors.white.withAlpha(13)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                borderRadius: BorderRadius.circular(MediaQuery.of(context).size.width < 400 ? 20 : 24),
-                border: Border.all(color: Colors.white.withAlpha(38), width: 1),
-              ),
-              child: Form(
-                key: _formKey,
-                autovalidateMode: AutovalidateMode.onUserInteraction,
-                child: _buildFormContents(),
-              ),
+    return AnimatedBuilder(
+      animation: _animationController,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _animationController.value,
+          child: Transform.translate(
+            offset: Offset(0, (1 - _animationController.value) * 20),
+            child: child,
+          ),
+        );
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: MediaQuery.of(context).size.width < 400 ? 20 : 28, 
+              vertical: MediaQuery.of(context).size.width < 400 ? 24 : 32
+            ),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [Colors.white.withAlpha(26), Colors.white.withAlpha(13)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+              borderRadius: BorderRadius.circular(MediaQuery.of(context).size.width < 400 ? 20 : 24),
+              border: Border.all(color: Colors.white.withAlpha(38), width: 1),
+            ),
+            child: Form(
+              key: _formKey,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              child: _buildFormContents(),
             ),
           ),
         ),
@@ -149,15 +160,8 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
   }
 
   Widget _buildFormContents() {
-    return AnimationLimiter(
-      child: Column(
-        children: AnimationConfiguration.toStaggeredList(
-          duration: const Duration(milliseconds: 300),
-          childAnimationBuilder: (widget) => SlideAnimation(
-            verticalOffset: 20.0,
-            child: FadeInAnimation(child: widget),
-          ),
-          children: [
+    return Column(
+      children: [
             Text(
               'Create Your Account', 
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -184,8 +188,6 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
             const SizedBox(height: 32),
             _buildRegisterButton(),
           ],
-        ),
-      ),
     );
   }
 
@@ -206,7 +208,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
         suffixIcon: suffixIcon,
       ),
       validator: validator,
-      onChanged: (_) => _updateButtonState(),
+      onChanged: (_) => _debounceUpdateButtonState(),
     );
   }
 
@@ -219,7 +221,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
 
   Widget _buildStreamSelector() {
     return DropdownButtonFormField<String>(
-      value: _selectedStream,
+      initialValue: _selectedStream,
       isExpanded: true,
       decoration: const InputDecoration(
         labelText: 'Select Stream',
@@ -227,7 +229,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
       ),
       dropdownColor: const Color(0xFF1E293B),
       items: _streams.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-      onChanged: (v) => setState(() { _selectedStream = v; _updateButtonState(); }),
+      onChanged: (v) => setState(() { _selectedStream = v; _debounceUpdateButtonState(); }),
       validator: (v) => v == null ? 'Please select a stream' : null,
     );
   }
@@ -259,7 +261,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
             value: _examScore,
             min: 0,
             max: 100,
-            divisions: 100,
+            divisions: 20,
             label: _examScore.round().toString(),
             onChanged: (v) => setState(() => _examScore = v),
           ),
@@ -291,7 +293,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
           label: Text(day),
           selected: selected,
           onSelected: (val) {
-            setState(() { _selectedDays[day] = val; _updateButtonState(); });
+            setState(() { _selectedDays[day] = val; _debounceUpdateButtonState(); });
           },
         );
       }).toList(),
@@ -335,7 +337,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
               setState(() {
                 _startTime = result.startTime;
                 _endTime = result.endTime;
-                _updateButtonState();
+                _debounceUpdateButtonState();
               });
             }
           },
@@ -375,7 +377,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     return CheckboxListTile(
       title: const Text('I accept the Terms and Conditions', style: TextStyle(color: Colors.white70)),
       value: _acceptTerms,
-      onChanged: (v) => setState(() { _acceptTerms = v ?? false; _updateButtonState(); }),
+      onChanged: (v) => setState(() { _acceptTerms = v ?? false; _debounceUpdateButtonState(); }),
       activeColor: const Color(0xFF3B82F6),
       controlAffinity: ListTileControlAffinity.leading,
       contentPadding: EdgeInsets.zero,
@@ -394,11 +396,13 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     );
   }
 
-  Widget _buildAnimatedGradientBackground() => TweenAnimationBuilder<Alignment>(
-    tween: AlignmentTween(begin: Alignment.topLeft, end: Alignment.bottomRight),
-    duration: const Duration(seconds: 20),
-    builder: (context, alignment, child) => Container(
-      decoration: BoxDecoration(gradient: LinearGradient(begin: alignment, end: -alignment, colors: const [Color(0xFF0F172A), Color(0xFF131c31), Color(0xFF1E293B)])),
+  Widget _buildAnimatedGradientBackground() => Container(
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFF0F172A), Color(0xFF131c31), Color(0xFF1E293B)],
+      ),
     ),
   );
 
@@ -410,7 +414,9 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
         child: Container(
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: RadialGradient(colors: [color.withAlpha(64), color.withAlpha(0)]),
+            gradient: RadialGradient(
+              colors: [color.withAlpha(64), color.withAlpha(0)],
+            ),
           ),
         ),
       ),

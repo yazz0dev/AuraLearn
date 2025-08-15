@@ -1,5 +1,7 @@
 import 'package:auralearn/components/loading_widget.dart';
+import 'package:auralearn/views/admin/create_subject.dart';
 import 'package:auralearn/views/admin/dashboard_admin.dart';
+import 'package:auralearn/views/admin/review_content.dart';
 import 'package:auralearn/views/admin/user_management.dart';
 import 'package:auralearn/views/forgot_password.dart';
 import 'package:auralearn/views/kp/dashboard_kp.dart';
@@ -96,6 +98,16 @@ final GoRouter router = GoRouter(
       path: '/admin/users',
       name: 'admin-users',
       builder: (context, state) => const UserManagementScreen(),
+    ),
+    GoRoute(
+      path: '/admin/create-subject',
+      name: 'admin-create-subject',
+      builder: (context, state) => const CreateSubjectPage(),
+    ),
+    GoRoute(
+      path: '/admin/review-content',
+      name: 'admin-review-content',
+      builder: (context, state) => const ReviewContentPage(),
     ),
     GoRoute(
       path: '/kp/dashboard',

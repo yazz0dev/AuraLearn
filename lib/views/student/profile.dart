@@ -1,6 +1,7 @@
 //scrum 3
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -73,7 +74,13 @@ class _ProfilePageState extends State<ProfilePage> {
         centerTitle: true,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Theme.of(context).textTheme.titleLarge?.color),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/student/dashboard');
+            }
+          },
         ),
         title: Text('My Profile', style: Theme.of(context).textTheme.titleMedium),
       ),
@@ -86,7 +93,7 @@ class _ProfilePageState extends State<ProfilePage> {
             // avatar
             CircleAvatar(
               radius: 56,
-              backgroundColor: primaryColor(context).withOpacity(0.1),
+              backgroundColor: primaryColor(context).withAlpha((0.1 * 255).round()),
               child: CircleAvatar(
                 radius: 52,
                 backgroundColor: isDark ? Colors.grey[800] : Colors.white,
@@ -152,7 +159,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             }
                           });
                         },
-                        selectedColor: primaryColor(context).withOpacity(0.2),
+                        selectedColor: primaryColor(context).withAlpha((0.2 * 255).round()),
                         backgroundColor: isDark ? Colors.grey[850] : Colors.grey[100],
                         elevation: 0,
                         padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),

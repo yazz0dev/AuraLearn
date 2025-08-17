@@ -1,13 +1,8 @@
-import 'dart:ui';
 import 'package:auralearn/components/toast.dart';
-import 'package:auralearn/views/admin/dashboard_admin.dart';
-import 'package:auralearn/views/forgot_password.dart';
-import 'package:auralearn/views/kp/dashboard_kp.dart';
-import 'package:auralearn/views/student/dashboard.dart';
-import 'package:auralearn/views/student/register.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:go_router/go_router.dart';
 import '../components/app_layout.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -17,7 +12,8 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
+class _LoginScreenState extends State<LoginScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -29,7 +25,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
     _animationController.forward();
   }
 
@@ -45,7 +44,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     if (!_formKey.currentState!.validate()) {
       return;
     }
-    setState(() { _isLoading = true; });
+    setState(() {
+      _isLoading = true;
+    });
 
     try {
       final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
@@ -58,36 +59,52 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         throw Exception("Authentication failed. Please try again.");
       }
 
-      final docSnapshot = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final docSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
 
       if (!docSnapshot.exists || docSnapshot.data() == null) {
-        throw Exception("User data not found in database. Please contact support.");
+        throw Exception(
+          "User data not found in database. Please contact support.",
+        );
       }
 
-      final role = docSnapshot.data()!['role'];
-
       if (!mounted) return;
+      
+      // Get user role and navigate to appropriate dashboard
+      final userData = docSnapshot.data() as Map<String, dynamic>;
+      final userRole = userData['role'] as String?;
+      
       Toast.show(context, "Login successful!", type: ToastType.success);
 
-      switch (role) {
-        case 'Admin':
-          Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => const DashboardAdmin()), (Route<dynamic> route) => false);
-          break;
-        case 'KP':
-          Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => const DashboardKP()), (Route<dynamic> route) => false);
-          break;
-        case 'Student':
-          Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => const StudentDashboard()), (Route<dynamic> route) => false);
-          break;
-        default:
-          throw Exception("Invalid user role detected.");
+      // Navigate to role-specific dashboard
+      if (mounted) {
+        debugPrint('Login successful, user role: $userRole');
+        switch (userRole) {
+          case 'Admin':
+            debugPrint('Navigating to admin dashboard');
+            context.go('/admin/dashboard');
+            break;
+          case 'KP':
+            debugPrint('Navigating to KP dashboard');
+            context.go('/kp/dashboard');
+            break;
+          case 'Student':
+            debugPrint('Navigating to student dashboard');
+            context.go('/student/dashboard');
+            break;
+          default:
+            debugPrint('Unknown role: $userRole, navigating to home');
+            context.go('/');
+            break;
+        }
       }
     } on FirebaseAuthException catch (e) {
       String message = "An unknown error occurred.";
-      if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
+      if (e.code == 'user-not-found' ||
+          e.code == 'wrong-password' ||
+          e.code == 'invalid-credential') {
         message = 'Invalid email or password.';
       } else {
         message = e.message ?? message;
@@ -99,10 +116,16 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       if (!mounted) return;
       await FirebaseAuth.instance.signOut();
       if (!mounted) return;
-      Toast.show(context, e.toString().replaceFirst("Exception: ", ""), type: ToastType.error);
+      Toast.show(
+        context,
+        e.toString().replaceFirst("Exception: ", ""),
+        type: ToastType.error,
+      );
     } finally {
       if (mounted) {
-        setState(() { _isLoading = false; });
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
@@ -135,36 +158,29 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   }
 
   Widget _buildAnimatedGlassForm() {
-    return AnimatedBuilder(
-      animation: _animationController,
-      builder: (context, child) {
-        return Opacity(
-          opacity: _animationController.value,
-          child: Transform.translate(
-            offset: Offset(0, (1 - _animationController.value) * 20),
-            child: child,
+    return FadeTransition(
+      opacity: _animationController,
+      child: SlideTransition(
+        position: Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero)
+            .animate(
+              CurvedAnimation(
+                parent: _animationController,
+                curve: Curves.easeOut,
+              ),
+            ),
+        child: Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: MediaQuery.of(context).size.width < 400 ? 20 : 28,
+            vertical: MediaQuery.of(context).size.width < 400 ? 24 : 32,
           ),
-        );
-      },
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          child: Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: MediaQuery.of(context).size.width < 400 ? 20 : 28, 
-              vertical: MediaQuery.of(context).size.width < 400 ? 24 : 32
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E293B).withAlpha(200),
+            borderRadius: BorderRadius.circular(
+              MediaQuery.of(context).size.width < 400 ? 20 : 24,
             ),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [Colors.white.withAlpha(26), Colors.white.withAlpha(13)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-              borderRadius: BorderRadius.circular(MediaQuery.of(context).size.width < 400 ? 20 : 24),
-              border: Border.all(color: Colors.white.withAlpha(38), width: 1),
-            ),
-            child: Form(
-              key: _formKey,
-              child: _buildFormContents(),
-            ),
+            border: Border.all(color: Colors.white.withAlpha(38), width: 1),
           ),
+          child: Form(key: _formKey, child: _buildFormContents()),
         ),
       ),
     );
@@ -174,95 +190,126 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-            Text(
-              'Welcome Back',
-              style: TextStyle(
-                fontSize: MediaQuery.of(context).size.width < 400 ? 24 : 28, 
-                fontWeight: FontWeight.bold, 
-                color: Colors.white
+        Text(
+          'Welcome Back',
+          style: TextStyle(
+            fontSize: MediaQuery.of(context).size.width < 400 ? 24 : 28,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Sign in to continue your journey',
+          style: TextStyle(
+            color: Colors.white.withAlpha(179),
+            fontSize: MediaQuery.of(context).size.width < 400 ? 14 : 16,
+          ),
+        ),
+        SizedBox(height: MediaQuery.of(context).size.width < 400 ? 24 : 32),
+        TextFormField(
+          controller: _emailController,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            labelText: 'Email Address',
+            prefixIcon: Icon(Icons.email_outlined),
+          ),
+          validator: (v) => (v == null || !v.contains('@'))
+              ? 'Please enter a valid email'
+              : null,
+          keyboardType: TextInputType.emailAddress,
+        ),
+        SizedBox(height: MediaQuery.of(context).size.width < 400 ? 12 : 16),
+        TextFormField(
+          controller: _passwordController,
+          obscureText: _obscurePassword,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            labelText: 'Password',
+            prefixIcon: const Icon(Icons.lock_outline_rounded),
+            suffixIcon: IconButton(
+              icon: Icon(
+                _obscurePassword
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
               ),
+              onPressed: () =>
+                  setState(() => _obscurePassword = !_obscurePassword),
+              color: Colors.white.withAlpha(179),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Sign in to continue your journey',
-              style: TextStyle(
-                color: Colors.white.withAlpha(179), 
-                fontSize: MediaQuery.of(context).size.width < 400 ? 14 : 16
-              ),
-            ),
-            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 24 : 32),
-            TextFormField(
-              controller: _emailController,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(labelText: 'Email Address', prefixIcon: Icon(Icons.email_outlined)),
-              validator: (v) => (v == null || !v.contains('@')) ? 'Please enter a valid email' : null,
-              keyboardType: TextInputType.emailAddress,
-            ),
-            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 12 : 16),
-            TextFormField(
-              controller: _passwordController,
-              obscureText: _obscurePassword,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                labelText: 'Password',
-                prefixIcon: const Icon(Icons.lock_outline_rounded),
-                suffixIcon: IconButton(
-                  icon: Icon(_obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                  color: Colors.white.withAlpha(179),
-                ),
-              ),
-              validator: (v) => (v == null || v.isEmpty) ? 'Please enter your password' : null,
-            ),
-            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 24 : 32),
-            GestureDetector(
-              onTap: _isLoading ? null : _login,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF3B82F6),
-                  borderRadius: BorderRadius.circular(30),
-                  boxShadow: [BoxShadow(color: const Color(0xFF3B82F6).withAlpha(102), blurRadius: 20, offset: const Offset(0, 5))],
-                ),
-                child: Center(
-                  child: _isLoading
-                      ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
-                      : const Text('Login', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                ),
-              ),
-            ),
-            SizedBox(height: MediaQuery.of(context).size.width < 400 ? 20 : 24),
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
-                );
-              },
-              child: Text(
-                'Forgot Password?',
-                style: TextStyle(color: Colors.white.withAlpha(179)),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text("Don’t have an account? ", style: TextStyle(color: Colors.white.withAlpha(179))),
-                GestureDetector(
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterScreen())),
-                  child: const Text(
-                    "Sign Up",
-                    style: TextStyle(
-                      color: Color(0xFF3B82F6),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+          ),
+          validator: (v) =>
+              (v == null || v.isEmpty) ? 'Please enter your password' : null,
+        ),
+        SizedBox(height: MediaQuery.of(context).size.width < 400 ? 24 : 32),
+        GestureDetector(
+          onTap: _isLoading ? null : _login,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF3B82F6),
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF3B82F6).withAlpha(102),
+                  blurRadius: 20,
+                  offset: const Offset(0, 5),
                 ),
               ],
             ),
+            child: Center(
+              child: _isLoading
+                  ? const SizedBox(
+                      height: 24,
+                      width: 24,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 3,
+                      ),
+                    )
+                  : const Text(
+                      'Login',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+            ),
+          ),
+        ),
+        SizedBox(height: MediaQuery.of(context).size.width < 400 ? 20 : 24),
+        GestureDetector(
+          onTap: () {
+            context.goNamed('forgot-password');
+          },
+          child: Text(
+            'Forgot Password?',
+            style: TextStyle(color: Colors.white.withAlpha(179)),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              "Don’t have an account? ",
+              style: TextStyle(color: Colors.white.withAlpha(179)),
+            ),
+            GestureDetector(
+              onTap: () => context.goNamed('register'),
+              child: const Text(
+                "Sign Up",
+                style: TextStyle(
+                  color: Color(0xFF3B82F6),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
           ],
+        ),
+      ],
     );
   }
 
@@ -276,20 +323,21 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     ),
   );
 
-  Widget _buildAuroraEffect(Color color, Alignment alignment) => Positioned.fill(
-    child: Align(
-      alignment: alignment,
-      child: AspectRatio(
-        aspectRatio: 1,
-        child: Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: RadialGradient(
-              colors: [color.withAlpha(64), color.withAlpha(0)],
+  Widget _buildAuroraEffect(Color color, Alignment alignment) =>
+      Positioned.fill(
+        child: Align(
+          alignment: alignment,
+          child: AspectRatio(
+            aspectRatio: 1,
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [color.withAlpha(64), color.withAlpha(0)],
+                ),
+              ),
             ),
           ),
         ),
-      ),
-    ),
-  );
+      );
 }

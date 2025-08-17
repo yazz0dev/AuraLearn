@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -42,7 +41,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
+    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 200));
     _addListeners();
     _animationController.forward();
   }
@@ -123,36 +122,30 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
   }
 
   Widget _buildAnimatedGlassForm() {
-    return AnimatedBuilder(
-      animation: _animationController,
-      builder: (context, child) {
-        return Opacity(
-          opacity: _animationController.value,
-          child: Transform.translate(
-            offset: Offset(0, (1 - _animationController.value) * 20),
-            child: child,
+    return FadeTransition(
+      opacity: _animationController,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 0.1),
+          end: Offset.zero,
+        ).animate(CurvedAnimation(
+          parent: _animationController,
+          curve: Curves.easeOut,
+        )),
+        child: Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: MediaQuery.of(context).size.width < 400 ? 20 : 28, 
+            vertical: MediaQuery.of(context).size.width < 400 ? 24 : 32
           ),
-        );
-      },
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          child: Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: MediaQuery.of(context).size.width < 400 ? 20 : 28, 
-              vertical: MediaQuery.of(context).size.width < 400 ? 24 : 32
-            ),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [Colors.white.withAlpha(26), Colors.white.withAlpha(13)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-              borderRadius: BorderRadius.circular(MediaQuery.of(context).size.width < 400 ? 20 : 24),
-              border: Border.all(color: Colors.white.withAlpha(38), width: 1),
-            ),
-            child: Form(
-              key: _formKey,
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              child: _buildFormContents(),
-            ),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E293B).withAlpha(200),
+            borderRadius: BorderRadius.circular(MediaQuery.of(context).size.width < 400 ? 20 : 24),
+            border: Border.all(color: Colors.white.withAlpha(38), width: 1),
+          ),
+          child: Form(
+            key: _formKey,
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            child: _buildFormContents(),
           ),
         ),
       ),

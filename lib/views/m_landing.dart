@@ -1,6 +1,5 @@
-import 'package:auralearn/views/login.dart';
-import 'package:auralearn/views/student/register.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class MobileLandingScreen extends StatefulWidget {
   const MobileLandingScreen({super.key});
@@ -187,10 +186,7 @@ class _MobileLandingScreenState extends State<MobileLandingScreen> with TickerPr
               ),
               child: ElevatedButton(
                 onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const RegisterScreen()),
-                  );
+                  context.goNamed('register');
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,
@@ -211,10 +207,7 @@ class _MobileLandingScreenState extends State<MobileLandingScreen> with TickerPr
             const SizedBox(height: 16),
             TextButton(
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                );
+                context.goNamed('login');
               },
               style: TextButton.styleFrom(
                 foregroundColor: Colors.white.withAlpha(179),

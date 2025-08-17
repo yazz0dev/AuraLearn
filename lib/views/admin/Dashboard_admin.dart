@@ -61,6 +61,10 @@ class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStat
         // Navigate to user management screen
         context.go('/admin/users');
         break;
+      case 2:
+        // Navigate to subjects screen
+        context.go('/admin/subjects');
+        break;
     }
   }
 
@@ -138,13 +142,13 @@ class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStat
                       children: [
                         Expanded(
                           child: _buildManagementCard(
-                            color: const Color(0xFF2C2C2C),
-                            iconColor: Colors.grey.shade800,
+                            color: Colors.blue.withAlpha(25),
+                            iconColor: Colors.blue.withAlpha(76),
                             title: 'Manage Subjects',
-                            subtitle: 'Coming Soon',
+                            subtitle: 'View & Edit',
                             onTap: () {
                               if (!mounted) return;
-                              context.go('/admin/create-subject');
+                              context.go('/admin/subjects');
                             },
                           ),
                         ),

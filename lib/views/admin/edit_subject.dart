@@ -5,30 +5,48 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../components/bottom_bar.dart';
 
-class CreateSubjectPage extends StatefulWidget {
-  const CreateSubjectPage({super.key});
+class EditSubjectPage extends StatefulWidget {
+  final String subjectId;
+  final Map<String, dynamic> subjectData;
+
+  const EditSubjectPage({
+    super.key,
+    required this.subjectId,
+    required this.subjectData,
+  });
 
   @override
-  State<CreateSubjectPage> createState() => _CreateSubjectPageState();
+  State<EditSubjectPage> createState() => _EditSubjectPageState();
 }
 
-class _CreateSubjectPageState extends State<CreateSubjectPage> {
+class _EditSubjectPageState extends State<EditSubjectPage> {
   int _currentIndex = 2; // Accessed from subjects screen
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _codeController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _creditsController = TextEditingController();
+  late final TextEditingController _nameController;
+  late final TextEditingController _codeController;
+  late final TextEditingController _descriptionController;
+  late final TextEditingController _creditsController;
 
-  bool _isActive = true;
+  late bool _isActive;
   bool _isLoading = false;
+  bool _isDeleting = false;
   List<Map<String, dynamic>> _kpUsers = [];
   String? _selectedKpId;
 
   @override
   void initState() {
     super.initState();
+    _initializeControllers();
     _loadKpUsers();
+  }
+
+  void _initializeControllers() {
+    _nameController = TextEditingController(text: widget.subjectData['name'] ?? '');
+    _codeController = TextEditingController(text: widget.subjectData['code'] ?? '');
+    _descriptionController = TextEditingController(text: widget.subjectData['description'] ?? '');
+    _creditsController = TextEditingController(text: '${widget.subjectData['credits'] ?? 0}');
+    _isActive = widget.subjectData['isActive'] ?? true;
+    _selectedKpId = widget.subjectData['assignedKpId'];
   }
 
   @override
@@ -84,7 +102,7 @@ class _CreateSubjectPageState extends State<CreateSubjectPage> {
     }
   }
 
-  Future<void> _createSubject() async {
+  Future<void> _updateSubject() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     setState(() {
@@ -99,16 +117,18 @@ class _CreateSubjectPageState extends State<CreateSubjectPage> {
         'credits': int.tryParse(_creditsController.text.trim()) ?? 0,
         'isActive': _isActive,
         'assignedKpId': _selectedKpId,
-        'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      await FirebaseFirestore.instance.collection('subjects').add(subjectData);
+      await FirebaseFirestore.instance
+          .collection('subjects')
+          .doc(widget.subjectId)
+          .update(subjectData);
 
       if (mounted) {
         Toast.show(
           context,
-          'Subject created successfully!',
+          'Subject updated successfully!',
           type: ToastType.success,
         );
         context.go('/admin/subjects');
@@ -117,7 +137,7 @@ class _CreateSubjectPageState extends State<CreateSubjectPage> {
       if (mounted) {
         Toast.show(
           context,
-          'Failed to create subject: ${e.toString()}',
+          'Failed to update subject: ${e.toString()}',
           type: ToastType.error,
         );
       }
@@ -130,6 +150,72 @@ class _CreateSubjectPageState extends State<CreateSubjectPage> {
     }
   }
 
+  Future<void> _deleteSubject() async {
+    final bool? shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1E1E1E),
+          title: const Text('Delete Subject', style: TextStyle(color: Colors.white)),
+          content: Text(
+            'Are you sure you want to delete "${widget.subjectData['name']}"? This action cannot be undone.',
+            style: const TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete != true) return;
+
+    setState(() {
+      _isDeleting = true;
+    });
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('subjects')
+          .doc(widget.subjectId)
+          .delete();
+
+      if (mounted) {
+        Toast.show(
+          context,
+          'Subject deleted successfully!',
+          type: ToastType.success,
+        );
+        context.go('/admin/subjects');
+      }
+    } catch (e) {
+      if (mounted) {
+        Toast.show(
+          context,
+          'Failed to delete subject: ${e.toString()}',
+          type: ToastType.error,
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isDeleting = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -137,9 +223,16 @@ class _CreateSubjectPageState extends State<CreateSubjectPage> {
 
     return AuthenticatedAppLayout(
       role: UserRole.admin,
-      appBarTitle: 'Create Subject',
+      appBarTitle: 'Edit Subject',
       bottomNavIndex: _currentIndex,
       onBottomNavTap: _onNavigate,
+      appBarActions: [
+        IconButton(
+          icon: const Icon(Icons.delete, color: Colors.red),
+          onPressed: _isDeleting ? null : _deleteSubject,
+          tooltip: 'Delete Subject',
+        ),
+      ],
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         child: Form(
@@ -311,17 +404,24 @@ class _CreateSubjectPageState extends State<CreateSubjectPage> {
                   style: const TextStyle(color: Colors.white),
                   dropdownColor: cardBg,
                   decoration: const InputDecoration(border: InputBorder.none),
-                  items: _kpUsers
-                      .map(
-                        (kp) => DropdownMenuItem<String>(
-                          value: kp['id'] as String,
-                          child: Text(
-                            '${kp['name']} (${kp['email']})',
-                            style: const TextStyle(color: Colors.white),
-                          ),
+                  items: [
+                    const DropdownMenuItem<String>(
+                      value: null,
+                      child: Text(
+                        'No KP Assigned',
+                        style: TextStyle(color: Colors.white54),
+                      ),
+                    ),
+                    ..._kpUsers.map(
+                      (kp) => DropdownMenuItem<String>(
+                        value: kp['id'] as String,
+                        child: Text(
+                          '${kp['name']} (${kp['email']})',
+                          style: const TextStyle(color: Colors.white),
                         ),
-                      )
-                      .toList(),
+                      ),
+                    ),
+                  ],
                   onChanged: (v) => setState(() => _selectedKpId = v),
                 ),
               ),
@@ -353,35 +453,51 @@ class _CreateSubjectPageState extends State<CreateSubjectPage> {
 
               const SizedBox(height: 48),
 
-              // Create Subject button
-              Center(
-                child: SizedBox(
-                  width: MediaQuery.of(context).size.width * 0.6,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
+              // Action buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => context.go('/admin/subjects'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white70,
+                        side: const BorderSide(color: Colors.white24),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      child: const Text('Cancel'),
                     ),
-                    onPressed: _isLoading ? null : _createSubject,
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text(
-                            'Create Subject',
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
                   ),
-                ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurple,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: _isLoading ? null : _updateSubject,
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text(
+                              'Update Subject',
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                    ),
+                  ),
+                ],
               ),
 
               const SizedBox(height: 24),

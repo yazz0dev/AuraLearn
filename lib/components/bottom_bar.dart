@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:auralearn/utils/responsive.dart';
 
 // --- FIX: Added 'kp' to the enum to support the new role ---
 enum UserRole { admin, student, kp }
@@ -20,6 +21,11 @@ class SharedBottomBar extends StatelessWidget {
     required this.selectedColor,
     required this.unselectedColor,
   });
+
+  // Helper method to determine if bottom bar should be shown
+  static bool shouldShowBottomBar(BuildContext context) {
+    return !ResponsiveUtils.isDesktop(context);
+  }
 
   // Items for the Student role
   static const List<BottomNavigationBarItem> _studentItems = [
@@ -57,6 +63,11 @@ class SharedBottomBar extends StatelessWidget {
       activeIcon: Icon(Icons.people),
       label: 'Users',
     ),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.school_outlined),
+      activeIcon: Icon(Icons.school),
+      label: 'Subjects',
+    ),
   ];
   
   // Items for the KP role
@@ -65,11 +76,6 @@ class SharedBottomBar extends StatelessWidget {
       icon: Icon(Icons.school_outlined),
       activeIcon: Icon(Icons.school),
       label: 'My Subjects',
-    ),
-    BottomNavigationBarItem(
-      icon: Icon(Icons.assignment_turned_in_outlined),
-      activeIcon: Icon(Icons.assignment_turned_in),
-      label: 'Review Queue',
     ),
   ];
 

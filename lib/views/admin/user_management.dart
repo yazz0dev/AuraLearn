@@ -49,6 +49,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> with Ticker
       case 1:
         // Users - already here, no navigation needed
         break;
+      case 2:
+        // Navigate to subjects screen
+        context.go('/admin/subjects');
+        break;
     }
   }
 
@@ -111,7 +115,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> with Ticker
                 ),
               ),
               actions: [
-                TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+                TextButton(onPressed: () => context.pop(), child: const Text('Cancel')),
                 ElevatedButton(
                   onPressed: isLoading ? null : () async {
                     if (formKey.currentState!.validate()) {
@@ -171,7 +175,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> with Ticker
       await tempApp.delete();
 
       if (mounted) {
-        Navigator.of(context).pop(); // Close dialog on success
+        context.pop(); // Close dialog on success
         Toast.show(context, 'User created successfully!', type: ToastType.success);
       }
     } on FirebaseAuthException catch (e) {

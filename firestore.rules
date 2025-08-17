@@ -3,21 +3,74 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Specific rules for the 'users' collection
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return request.auth != null && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+    }
+    
+    // Helper function to check if user is KP
+    function isKP() {
+      return request.auth != null && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'KP';
+    }
+    
+    // Helper function to check if user is Student
+    function isStudent() {
+      return request.auth != null && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Student';
+    }
+    
+    // Rules for the 'users' collection
     match /users/{userId} {
       // Any authenticated user can read user profiles.
       // The .count() function requires 'list' permission.
       allow get, list: if request.auth != null;
 
       // A user can only create or update their own document.
-      allow create, update: if request.auth.uid == userId;
+      // Admins can also create/update user documents.
+      allow create, update: if request.auth.uid == userId || isAdmin();
+      
+      // Only admins can delete users
+      allow delete: if isAdmin();
     }
 
-    // Add more specific rules for other collections here.
-    // Example:
-    // match /subjects/{subjectId} {
-    //   allow read: if request.auth != null;
-    //   // etc.
-    // }
+    // Rules for the 'subjects' collection
+    match /subjects/{subjectId} {
+      // Anyone authenticated can read subjects
+      allow read: if request.auth != null;
+      
+      // Only admins can create, update, or delete subjects
+      allow create, update, delete: if isAdmin();
+      
+      // Allow listing subjects for authenticated users
+      allow list: if request.auth != null;
+    }
+    
+    // Rules for content collections (future use)
+    match /content/{contentId} {
+      // Students and KPs can read content
+      allow read: if request.auth != null && (isStudent() || isKP() || isAdmin());
+      
+      // Only KPs and Admins can create/update content
+      allow create, update: if isKP() || isAdmin();
+      
+      // Only admins can delete content
+      allow delete: if isAdmin();
+    }
+    
+    // Rules for assignments/submissions (future use)
+    match /assignments/{assignmentId} {
+      // Students can read assignments assigned to them
+      // KPs can read assignments for their subjects
+      // Admins can read all assignments
+      allow read: if request.auth != null;
+      
+      // Only KPs and Admins can create assignments
+      allow create, update: if isKP() || isAdmin();
+      
+      // Only admins can delete assignments
+      allow delete: if isAdmin();
+    }
   }
 }

@@ -1,10 +1,17 @@
 import 'package:auralearn/router.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:url_strategy/url_strategy.dart';
 import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Remove the # from URLs on web
+  if (kIsWeb) {
+    setPathUrlStrategy();
+  }
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const AuraLearnApp());

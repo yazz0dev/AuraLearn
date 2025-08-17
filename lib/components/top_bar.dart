@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:ui';
 import 'package:go_router/go_router.dart';
 
 class TopNavigationBar extends StatelessWidget {
@@ -14,46 +13,32 @@ class TopNavigationBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-        child: Container(
-          height: 60,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Colors.white.withAlpha(64),
-                Colors.white.withAlpha(26),
-              ],
-            ),
-            border: Border(
-              bottom: BorderSide(
-                color: Colors.white.withAlpha(51),
-                width: 1,
-              ),
-            ),
-          ),
-          child: Row(
-            children: [
-              // --- FIX: Removed Flexible wrapper to prioritize showing the full logo ---
- // --- FIX: Updated logo tap to use go_router ---
-  MouseRegion(
-    cursor: SystemMouseCursors.click,
-    child: GestureDetector(
-      onTap: () {
-        context.goNamed('home');
-      },
-      child: _buildLogo(),
-    ),
-  ),
-              const Spacer(),
-              _buildActions(context),
-            ],
+    return Container(
+      height: 60,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A).withAlpha(230),
+        border: Border(
+          bottom: BorderSide(
+            color: Colors.white.withAlpha(26),
+            width: 1,
           ),
         ),
+      ),
+      child: Row(
+        children: [
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: () {
+                context.goNamed('home');
+              },
+              child: _buildLogo(),
+            ),
+          ),
+          const Spacer(),
+          _buildActions(context),
+        ],
       ),
     );
   }
@@ -99,33 +84,29 @@ class TopNavigationBar extends StatelessWidget {
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            // --- FIX: Reduced padding to make buttons smaller ---
-            padding: EdgeInsets.symmetric(
-              horizontal: isSmall ? 12 : 16,
-              vertical: isSmall ? 6 : 8,
-            ),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: isPrimary
-                    ? [Colors.white.withAlpha(77), Colors.white.withAlpha(26)]
-                    : [Colors.white.withAlpha(51), Colors.white.withAlpha(13)],
-              ),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white.withAlpha(51), width: 1),
-            ),
-            child: Text(
-              text,
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: isSmall ? 14 : 15,
-              ),
-            ),
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: isSmall ? 12 : 16,
+          vertical: isSmall ? 6 : 8,
+        ),
+        decoration: BoxDecoration(
+          color: isPrimary
+              ? const Color(0xFF3B82F6).withAlpha(180)
+              : Colors.white.withAlpha(26),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isPrimary 
+                ? const Color(0xFF3B82F6).withAlpha(100)
+                : Colors.white.withAlpha(51), 
+            width: 1
+          ),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+            fontSize: isSmall ? 14 : 15,
           ),
         ),
       ),

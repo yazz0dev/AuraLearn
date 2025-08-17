@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'profile.dart';
+import 'package:go_router/go_router.dart';
 
 class StudentDashboard extends StatefulWidget {
   const StudentDashboard({super.key});
@@ -44,18 +44,19 @@ class _StudentDashboardState extends State<StudentDashboard> with SingleTickerPr
     switch (index) {
       case 0:
         // Dashboard - already here
+        if (mounted) context.go('/student/dashboard');
         break;
       case 1:
         // Subjects - navigate to subjects screen
-        // TODO: Implement subjects navigation
+        if (mounted) context.go('/student/subjects');
         break;
       case 2:
         // Schedule - navigate to schedule screen
-        // TODO: Implement schedule navigation
+        if (mounted) context.go('/student/schedule');
         break;
       case 3:
         // Progress - navigate to progress screen
-        // TODO: Implement progress navigation
+        if (mounted) context.go('/student/progress');
         break;
     }
   }
@@ -69,7 +70,7 @@ class _StudentDashboardState extends State<StudentDashboard> with SingleTickerPr
         GestureDetector(
           onTap: () {
             if (!mounted) return;
-            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProfilePage()));
+            context.push('/student/profile');
           },
           child: const Padding(
             padding: EdgeInsets.only(right: 12.0),

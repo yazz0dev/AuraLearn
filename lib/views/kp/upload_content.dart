@@ -1,6 +1,7 @@
 //scrum 2
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class UploadContentPage extends StatefulWidget {
   const UploadContentPage({super.key});
@@ -54,7 +55,13 @@ class _UploadContentPageState extends State<UploadContentPage> {
         centerTitle: true,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Theme.of(context).textTheme.titleLarge?.color),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/kp/dashboard');
+            }
+          },
         ),
         title: Text('General Chemistry', style: Theme.of(context).textTheme.titleMedium),
       ),
@@ -78,7 +85,7 @@ class _UploadContentPageState extends State<UploadContentPage> {
                   decoration: BoxDecoration(
                     color: boxBg,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.withOpacity(0.35)),
+                    border: Border.all(color: Colors.grey.shade500.withAlpha((0.35 * 255).round())),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
@@ -135,7 +142,7 @@ class _UploadContentPageState extends State<UploadContentPage> {
                   decoration: BoxDecoration(
                     color: boxBg,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.withOpacity(0.35)),
+                    border: Border.all(color: Colors.grey.shade500.withAlpha((0.35 * 255).round())),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,

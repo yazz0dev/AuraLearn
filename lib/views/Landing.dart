@@ -1,10 +1,8 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart'; // Note: Add url_launcher to your pubspec.yaml
-import 'package:flutter_svg/flutter_svg.dart'; // Add flutter_svg to your pubspec.yaml
+import 'package:go_router/go_router.dart';
 import '../components/app_layout.dart';
-import 'student/register.dart';
 
 class LandingScreen extends StatefulWidget {
   const LandingScreen({super.key});
@@ -18,12 +16,14 @@ class _LandingScreenState extends State<LandingScreen>
   late AnimationController _controller;
   late ScrollController _scrollController1;
   late ScrollController _scrollController2;
+  Timer? _marqueeTimer1;
+  Timer? _marqueeTimer2;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 300),
       vsync: this,
     );
     _scrollController1 = ScrollController();
@@ -33,44 +33,61 @@ class _LandingScreenState extends State<LandingScreen>
 
     // Start the marquee animations after the first frame is rendered
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _startMarquee(_scrollController1, 25);
-      _startMarquee(_scrollController2, 30, reverse: true);
+      _marqueeTimer1 = _startMarquee(_scrollController1, 20);
+      _marqueeTimer2 = _startMarquee(_scrollController2, 20, reverse: true);
     });
   }
 
-  void _startMarquee(
+  Timer _startMarquee(
     ScrollController controller,
     int seconds, {
     bool reverse = false,
   }) {
-    if (!controller.hasClients || !mounted) return;
+    if (!controller.hasClients || !mounted) {
+      return Timer(Duration.zero, () {});
+    }
 
-    final double maxExtent = controller.position.maxScrollExtent;
-    final double minExtent = controller.position.minScrollExtent;
+    // Use a timer-based approach to avoid infinite scroll positions
+    return Timer.periodic(const Duration(milliseconds: 50), (timer) {
+      if (!mounted || !controller.hasClients) {
+        timer.cancel();
+        return;
+      }
 
-    if (maxExtent <= 0) return;
+      final double currentOffset = controller.offset;
+      final double maxExtent = controller.position.maxScrollExtent;
+      final double minExtent = controller.position.minScrollExtent;
 
-    // Use a fixed duration for smoother performance
-    const duration = Duration(seconds: 15);
+      if (maxExtent <= 0) {
+        timer.cancel();
+        return;
+      }
 
-    // Animate to the end or beginning
-    controller
-        .animateTo(
-          reverse ? minExtent : maxExtent,
-          duration: duration,
-          curve: Curves.linear,
-        )
-        .then((_) {
-          // When animation completes, jump back and restart if the widget is still mounted
-          if (mounted && controller.hasClients) {
-            controller.jumpTo(reverse ? maxExtent : minExtent);
-            _startMarquee(controller, seconds, reverse: reverse);
-          }
-        });
+      // Calculate scroll speed (pixels per frame)
+      const double scrollSpeed = 1.0;
+
+      if (reverse) {
+        if (currentOffset <= minExtent) {
+          // Jump to near the end to create seamless loop
+          controller.jumpTo(maxExtent * 0.66);
+        } else {
+          controller.jumpTo(currentOffset - scrollSpeed);
+        }
+      } else {
+        if (currentOffset >= maxExtent * 0.66) {
+          // Jump to start to create seamless loop
+          controller.jumpTo(minExtent);
+        } else {
+          controller.jumpTo(currentOffset + scrollSpeed);
+        }
+      }
+    });
   }
 
   @override
   void dispose() {
+    _marqueeTimer1?.cancel();
+    _marqueeTimer2?.cancel();
     _controller.dispose();
     _scrollController1.dispose();
     _scrollController2.dispose();
@@ -214,12 +231,7 @@ class _LandingScreenState extends State<LandingScreen>
                 intervalStart: 0.5,
                 intervalEnd: 1.0,
                 child: GestureDetector(
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const RegisterScreen(),
-                    ),
-                  ),
+                  onTap: () => context.goNamed('register'),
                   child: _buildModernButton(
                     'Start Learning For Free',
                     isPrimary: true,
@@ -420,8 +432,11 @@ class _LandingScreenState extends State<LandingScreen>
     bool isSmallMobile, {
     bool reverse = false,
   }) {
-    // Duplicate the list to ensure there's enough content to scroll smoothly
-    final duplicatedCourses = [...courses, ...courses];
+    // Create enough items for smooth scrolling
+    final repeatedCourses = <Map<String, dynamic>>[];
+    for (int i = 0; i < 20; i++) {
+      repeatedCourses.addAll(courses);
+    }
 
     return SizedBox(
       height: isSmallMobile ? 100 : 120,
@@ -429,11 +444,13 @@ class _LandingScreenState extends State<LandingScreen>
         controller: controller,
         scrollDirection: Axis.horizontal,
         physics: const NeverScrollableScrollPhysics(),
-        itemCount: duplicatedCourses.length,
+        itemCount: repeatedCourses.length,
         cacheExtent: 1000,
+        addAutomaticKeepAlives: false,
+        addRepaintBoundaries: false,
         itemBuilder: (context, index) {
-          final course = duplicatedCourses[index];
-          return _buildModernCourseCard(course, isSmallMobile);
+          if (index >= repeatedCourses.length) return const SizedBox.shrink();
+          return _buildModernCourseCard(repeatedCourses[index], isSmallMobile);
         },
       ),
     );
@@ -780,8 +797,8 @@ class __FeatureCardState extends State<_FeatureCard> {
       onExit: (event) => setState(() => _isHovered = false),
       cursor: SystemMouseCursors.click,
       child: AnimatedScale(
-        scale: _isHovered ? 1.05 : 1.0,
-        duration: const Duration(milliseconds: 200),
+        scale: _isHovered ? 1.02 : 1.0,
+        duration: const Duration(milliseconds: 150),
         curve: Curves.easeOut,
         child: Container(
           padding: EdgeInsets.all(isSmallCard ? 16 : 20),
@@ -839,14 +856,13 @@ class __FeatureCardState extends State<_FeatureCard> {
 
 // --- NEW: Private StatefulWidget for hover effect on social buttons ---
 class _SocialButton extends StatefulWidget {
-  final String? imageUrl; // optional network image for logos
   final IconData? icon; // fallback icon
   final Color color;
   final bool isSmall;
   final VoidCallback onTap;
 
   const _SocialButton({
-    this.icon,
+    required this.icon,
     required this.color,
     required this.isSmall,
     required this.onTap,
@@ -868,8 +884,8 @@ class __SocialButtonState extends State<_SocialButton> {
       child: GestureDetector(
         onTap: widget.onTap,
         child: AnimatedScale(
-          scale: _isHovered ? 1.15 : 1.0,
-          duration: const Duration(milliseconds: 200),
+          scale: _isHovered ? 1.08 : 1.0,
+          duration: const Duration(milliseconds: 150),
           child: Container(
             width: widget.isSmall ? 50 : 60,
             height: widget.isSmall ? 50 : 60,
@@ -882,38 +898,6 @@ class __SocialButtonState extends State<_SocialButton> {
               padding: const EdgeInsets.all(8.0),
               child: Builder(
                 builder: (context) {
-                  if (widget.imageUrl != null) {
-                    final isSvg = widget.imageUrl!.toLowerCase().endsWith(
-                      '.svg',
-                    );
-                    if (isSvg) {
-                      return SvgPicture.network(
-                        widget.imageUrl!,
-                        fit: BoxFit.contain,
-                        placeholderBuilder: (context) => Center(
-                          child: SizedBox(
-                            width: widget.isSmall ? 18 : 22,
-                            height: widget.isSmall ? 18 : 22,
-                            child: const CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
-                          ),
-                        ),
-                        width: widget.isSmall ? 24 : 28,
-                        height: widget.isSmall ? 24 : 28,
-                      );
-                    } else {
-                      return Image.network(
-                        widget.imageUrl!,
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) => Icon(
-                          widget.icon ?? Icons.link,
-                          size: widget.isSmall ? 24 : 28,
-                          color: widget.color,
-                        ),
-                      );
-                    }
-                  }
                   return Icon(
                     widget.icon ?? Icons.link,
                     size: widget.isSmall ? 24 : 28,

@@ -3,8 +3,8 @@ import 'package:auralearn/components/app_layout.dart';
 import 'package:auralearn/components/toast.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:go_router/go_router.dart';
+import '../utils/page_transitions.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -30,11 +30,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
   @override
   void initState() {
     super.initState();
-    // --- FIX: Increased animation speed for a snappier feel ---
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
+    _animationController = PageTransitions.createStandardController(vsync: this);
     _animationController.forward();
     _checkForOobCode();
   }
@@ -195,37 +191,27 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
   }
 
   Widget _buildAnimatedGlassForm() {
-    return FadeTransition(
-      opacity: _animationController,
-      child: SlideTransition(
-        // --- FIX: Smoother animation curve ---
-        position: Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero)
-            .animate(
-              CurvedAnimation(
-                parent: _animationController,
-                curve: Curves.easeOutCubic,
+    return PageTransitions.buildSubtlePageTransition(
+      controller: _animationController,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white.withAlpha(26),
+                  Colors.white.withAlpha(13),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Colors.white.withAlpha(38), width: 1),
             ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.white.withAlpha(26),
-                    Colors.white.withAlpha(13),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.white.withAlpha(38), width: 1),
-              ),
-              child: Form(key: _formKey, child: _buildFormContents()),
-            ),
+            child: Form(key: _formKey, child: _buildFormContents()),
           ),
         ),
       ),
@@ -233,104 +219,104 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
   }
 
   Widget _buildFormContents() {
-    return AnimationLimiter(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: AnimationConfiguration.toStaggeredList(
-          duration: const Duration(milliseconds: 500),
-          childAnimationBuilder: (widget) => SlideAnimation(
-            verticalOffset: 50.0,
-            child: FadeInAnimation(child: widget),
-          ),
-          children: [
-            const Text(
-              'Reset Password',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Enter your email to receive a reset link',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white.withAlpha(179),
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 32),
-            TextFormField(
-              controller: _emailController,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                labelText: 'Email Address',
-                prefixIcon: Icon(Icons.email_outlined),
-              ),
-              validator: (v) {
-                if (v == null || !v.contains('@')) {
-                  return 'Please enter a valid email';
-                }
-                return null;
-              },
-              keyboardType: TextInputType.emailAddress,
-            ),
-            const SizedBox(height: 32),
-            GestureDetector(
-              onTap: _isLoading ? null : _sendResetLink,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF3B82F6),
-                  borderRadius: BorderRadius.circular(30),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF3B82F6).withAlpha(102),
-                      blurRadius: 20,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 24,
-                          width: 24,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 3,
-                          ),
-                        )
-                      : const Text(
-                          'Send Reset Link',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            GestureDetector(
-              onTap: () {
-                if (context.canPop()) {
-                  context.pop();
-                } else {
-                  context.go('/login');
-                }
-              },
-              child: Text(
-                'Back to Login',
-                style: TextStyle(color: Colors.white.withAlpha(179)),
-              ),
-            ),
-          ],
+    final formElements = [
+      const Text(
+        'Reset Password',
+        style: TextStyle(
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
         ),
       ),
+      const SizedBox(height: 8),
+      Text(
+        'Enter your email to receive a reset link',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: Colors.white.withAlpha(179),
+          fontSize: 16,
+        ),
+      ),
+      const SizedBox(height: 32),
+      TextFormField(
+        controller: _emailController,
+        style: const TextStyle(color: Colors.white),
+        decoration: const InputDecoration(
+          labelText: 'Email Address',
+          prefixIcon: Icon(Icons.email_outlined),
+        ),
+        validator: (v) {
+          if (v == null || !v.contains('@')) {
+            return 'Please enter a valid email';
+          }
+          return null;
+        },
+        keyboardType: TextInputType.emailAddress,
+      ),
+      const SizedBox(height: 32),
+      GestureDetector(
+        onTap: _isLoading ? null : _sendResetLink,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF3B82F6),
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF3B82F6).withAlpha(102),
+                blurRadius: 20,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Center(
+            child: _isLoading
+                ? const SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 3,
+                    ),
+                  )
+                : const Text(
+                    'Send Reset Link',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+          ),
+        ),
+      ),
+      const SizedBox(height: 24),
+      GestureDetector(
+        onTap: () {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/login');
+          }
+        },
+        child: Text(
+          'Back to Login',
+          style: TextStyle(color: Colors.white.withAlpha(179)),
+        ),
+      ),
+    ];
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: formElements.asMap().entries.map((entry) {
+        return PageTransitions.buildStaggeredTransition(
+          controller: _animationController,
+          index: entry.key,
+          totalItems: formElements.length,
+          child: entry.value,
+        );
+      }).toList(),
     );
   }
 
@@ -349,138 +335,129 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
         ],
       );
     }
-    return FadeTransition(
-      opacity: _animationController,
-      child: SlideTransition(
-        position: Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero)
-            .animate(
-              CurvedAnimation(
-                parent: _animationController,
-                curve: Curves.easeOutCubic,
+    return PageTransitions.buildSubtlePageTransition(
+      controller: _animationController,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white.withAlpha(26),
+                  Colors.white.withAlpha(13),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Colors.white.withAlpha(38), width: 1),
             ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.white.withAlpha(26),
-                    Colors.white.withAlpha(13),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.white.withAlpha(38), width: 1),
-              ),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      'Set New Password',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Set New Password',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Enter your new password below.',
+                    style: TextStyle(color: Colors.white70, fontSize: 16),
+                  ),
+                  const SizedBox(height: 32),
+                  TextFormField(
+                    controller: _newPasswordController,
+                    obscureText: true,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      labelText: 'New Password',
+                      prefixIcon: Icon(Icons.lock_outline),
+                    ),
+                    validator: (v) {
+                      if (v == null || v.length < 6) {
+                        return 'Password must be at least 6 characters';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _confirmPasswordController,
+                    obscureText: true,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      labelText: 'Confirm Password',
+                      prefixIcon: Icon(Icons.lock_outline),
+                    ),
+                    validator: (v) {
+                      if (v != _newPasswordController.text) {
+                        return 'Passwords do not match';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 32),
+                  GestureDetector(
+                    onTap: _isLoading ? null : _resetPassword,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF3B82F6),
+                        borderRadius: BorderRadius.circular(30),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF3B82F6).withAlpha(102),
+                            blurRadius: 20,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Enter your new password below.',
-                      style: TextStyle(color: Colors.white70, fontSize: 16),
-                    ),
-                    const SizedBox(height: 32),
-                    TextFormField(
-                      controller: _newPasswordController,
-                      obscureText: true,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(
-                        labelText: 'New Password',
-                        prefixIcon: Icon(Icons.lock_outline),
-                      ),
-                      validator: (v) {
-                        if (v == null || v.length < 6) {
-                          return 'Password must be at least 6 characters';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _confirmPasswordController,
-                      obscureText: true,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(
-                        labelText: 'Confirm Password',
-                        prefixIcon: Icon(Icons.lock_outline),
-                      ),
-                      validator: (v) {
-                        if (v != _newPasswordController.text) {
-                          return 'Passwords do not match';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 32),
-                    GestureDetector(
-                      onTap: _isLoading ? null : _resetPassword,
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF3B82F6),
-                          borderRadius: BorderRadius.circular(30),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF3B82F6).withAlpha(102),
-                              blurRadius: 20,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: _isLoading
-                              ? const SizedBox(
-                                  height: 24,
-                                  width: 24,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 3,
-                                  ),
-                                )
-                              : const Text(
-                                  'Reset Password',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
+                      child: Center(
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 24,
+                                width: 24,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 3,
                                 ),
-                        ),
+                              )
+                            : const Text(
+                                'Reset Password',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
                       ),
                     ),
-                    const SizedBox(height: 24),
-                    GestureDetector(
-                      onTap: () {
-                        if (context.canPop()) {
-                          context.pop();
-                        } else {
-                          context.go('/login');
-                        }
-                      },
-                      child: Text(
-                        'Back to Login',
-                        style: TextStyle(color: Colors.white.withAlpha(179)),
-                      ),
+                  ),
+                  const SizedBox(height: 24),
+                  GestureDetector(
+                    onTap: () {
+                      if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        context.go('/login');
+                      }
+                    },
+                    child: Text(
+                      'Back to Login',
+                      style: TextStyle(color: Colors.white.withAlpha(179)),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),

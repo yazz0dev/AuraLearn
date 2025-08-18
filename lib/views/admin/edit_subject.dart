@@ -82,6 +82,14 @@ class _EditSubjectPageState extends State<EditSubjectPage> {
     }
   }
 
+  String? _getValidSelectedKpId() {
+    if (_selectedKpId == null) return null;
+    
+    // Check if the selected KP ID exists in the loaded KP users
+    final kpExists = _kpUsers.any((kp) => kp['id'] == _selectedKpId);
+    return kpExists ? _selectedKpId : null;
+  }
+
   void _onNavigate(int index) {
     if (index == _currentIndex) return;
 
@@ -396,7 +404,7 @@ class _EditSubjectPageState extends State<EditSubjectPage> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: DropdownButtonFormField<String>(
-                  initialValue: _selectedKpId,
+                  initialValue: _getValidSelectedKpId(),
                   hint: const Text(
                     'Select a Knowledge Provider',
                     style: TextStyle(color: Colors.white54),

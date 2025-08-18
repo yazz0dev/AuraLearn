@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart'; // Note: Add url_launcher to your pubspec.yaml
 import 'package:go_router/go_router.dart';
 import '../components/app_layout.dart';
+import '../utils/page_transitions.dart';
 
 class LandingScreen extends StatefulWidget {
   const LandingScreen({super.key});
@@ -22,10 +23,7 @@ class _LandingScreenState extends State<LandingScreen>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
+    _controller = PageTransitions.createStandardController(vsync: this);
     _scrollController1 = ScrollController();
     _scrollController2 = ScrollController();
 
@@ -106,19 +104,10 @@ class _LandingScreenState extends State<LandingScreen>
     required double intervalStart,
     double intervalEnd = 1.0,
   }) {
-    final animation = CurvedAnimation(
-      parent: _controller,
-      curve: Interval(intervalStart, intervalEnd, curve: Curves.easeOut),
-    );
-    return FadeTransition(
-      opacity: animation,
-      child: SlideTransition(
-        position: Tween<Offset>(
-          begin: const Offset(0, 0.1),
-          end: Offset.zero,
-        ).animate(animation),
-        child: child,
-      ),
+    return PageTransitions.buildSubtlePageTransition(
+      controller: _controller,
+      child: child,
+      delay: intervalStart,
     );
   }
 

@@ -77,6 +77,11 @@ class SharedBottomBar extends StatelessWidget {
       activeIcon: Icon(Icons.school),
       label: 'My Subjects',
     ),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.person_outline),
+      activeIcon: Icon(Icons.person),
+      label: 'Profile',
+    ),
   ];
 
   @override

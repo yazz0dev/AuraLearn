@@ -3,6 +3,7 @@ import 'package:auralearn/components/bottom_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 
 class DashboardKP extends StatefulWidget {
@@ -14,8 +15,9 @@ class DashboardKP extends StatefulWidget {
 
 class _DashboardKPState extends State<DashboardKP>
     with SingleTickerProviderStateMixin {
-  int _currentIndex = 0;
   late AnimationController _animationController;
+  late Stream<QuerySnapshot> _assignedSubjectsStream;
+  String? _currentUserId;
 
   @override
   void initState() {
@@ -25,6 +27,20 @@ class _DashboardKPState extends State<DashboardKP>
       vsync: this,
     );
     _animationController.forward();
+    _initializeUserData();
+  }
+
+  void _initializeUserData() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      _currentUserId = user.uid;
+      // Query subjects assigned to this KP
+      _assignedSubjectsStream = FirebaseFirestore.instance
+          .collection('subjects')
+          .where('assignedKpId', isEqualTo: _currentUserId)
+          .where('isActive', isEqualTo: true)
+          .snapshots();
+    }
   }
 
   @override
@@ -33,182 +49,346 @@ class _DashboardKPState extends State<DashboardKP>
     super.dispose();
   }
 
-  void _onBottomNavTap(int index) {
-    // Since we only have one navigation item (My Subjects), 
-    // we don't need to handle navigation changes
-    if (index == _currentIndex) return;
-
-    setState(() {
-      _currentIndex = index;
-    });
-
-    // Only one case now - My Subjects (index 0)
-    if (index == 0 && mounted) {
-      context.go('/kp/dashboard');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return AuthenticatedAppLayout(
       role: UserRole.kp,
       appBarTitle: 'My Subjects',
-      appBarActions: [
-        PopupMenuButton<String>(
-          onSelected: (value) async {
-            switch (value) {
-              case 'test_logout':
-                // Test logout functionality
-                debugPrint('Test logout from KP dashboard');
-                final BuildContext currentContext = context;
-                try {
-                  await FirebaseAuth.instance.signOut();
-                  if (!mounted) return;
-                  if (!currentContext.mounted) return;
-                  ScaffoldMessenger.of(currentContext).showSnackBar(
-                    const SnackBar(
-                      content: Text('Logout successful from KP dashboard'),
+
+      child: _currentUserId == null
+          ? const Center(child: CircularProgressIndicator())
+          : StreamBuilder<QuerySnapshot>(
+              stream: _assignedSubjectsStream,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return _buildLoadingSkeleton();
+                }
+
+                if (snapshot.hasError) {
+                  debugPrint('Firestore error: ${snapshot.error}');
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: Colors.red[300],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error loading subjects',
+                          style: TextStyle(
+                            color: Colors.red[300],
+                            fontSize: 18,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${snapshot.error}',
+                          style: const TextStyle(
+                            color: Colors.white54,
+                            fontSize: 12,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ),
                   );
-                } catch (e) {
-                  debugPrint('Test logout error: $e');
                 }
-                break;
-            }
-          },
-          itemBuilder: (BuildContext context) => [
-            const PopupMenuItem<String>(
-              value: 'test_logout',
-              child: Row(
-                children: [
-                  Icon(Icons.logout, color: Colors.red),
-                  SizedBox(width: 8),
-                  Text('Test Logout', style: TextStyle(color: Colors.red)),
-                ],
-              ),
+
+                final subjects = snapshot.data?.docs ?? [];
+
+                // Sort subjects by createdAt on client side
+                subjects.sort((a, b) {
+                  final aData = a.data() as Map<String, dynamic>;
+                  final bData = b.data() as Map<String, dynamic>;
+                  final aCreatedAt = aData['createdAt'] as Timestamp?;
+                  final bCreatedAt = bData['createdAt'] as Timestamp?;
+
+                  if (aCreatedAt == null && bCreatedAt == null) return 0;
+                  if (aCreatedAt == null) return 1;
+                  if (bCreatedAt == null) return -1;
+
+                  return bCreatedAt.compareTo(aCreatedAt); // Descending order
+                });
+
+                if (subjects.isEmpty) {
+                  return _buildEmptyState();
+                }
+
+                return AnimationLimiter(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(20),
+                    itemCount: subjects.length,
+                    itemBuilder: (context, index) {
+                      final subject = subjects[index];
+                      final data = subject.data() as Map<String, dynamic>;
+
+                      return AnimationConfiguration.staggeredList(
+                        position: index,
+                        duration: const Duration(milliseconds: 200),
+                        child: SlideAnimation(
+                          verticalOffset: 15.0,
+                          child: FadeInAnimation(
+                            child: Padding(
+                              padding: const EdgeInsets.only(bottom: 24),
+                              child: _buildSubjectCard(
+                                subjectId: subject.id,
+                                subjectData: data,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
             ),
-          ],
-          color: const Color(0xFF2C2C2C),
-          icon: const CircleAvatar(
-            radius: 16,
-            backgroundColor: Colors.teal,
-            child: Icon(Icons.school, color: Colors.white, size: 16),
-          ),
-        ),
-      ],
-      showBottomBar: true,
-      bottomNavIndex: _currentIndex,
-      onBottomNavTap: _onBottomNavTap,
-      child: AnimationLimiter(
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: AnimationConfiguration.toStaggeredList(
-            duration: const Duration(milliseconds: 200),
-            childAnimationBuilder: (widget) => SlideAnimation(
-              verticalOffset: 15.0,
-              child: FadeInAnimation(child: widget),
-            ),
-            children: [
-              _buildSubjectCard(
-                status: 'Syllabus Pending',
-                title: 'Subject 1',
-                description: 'Upload the syllabus to proceed.',
-                buttonText: 'Upload Syllabus',
-                imageColor: const Color(0xFFD6C6C2),
-                onButtonPressed: () {},
-              ),
-              const SizedBox(height: 24),
-              _buildSubjectCard(
-                status: 'Ready for Material',
-                title: 'Subject 2',
-                description: 'Study material can now be uploaded.',
-                buttonText: 'Upload Study Material',
-                imageColor: const Color(0xFFF2CACA),
-                onButtonPressed: () {},
-              ),
-              const SizedBox(height: 24),
-              _buildSubjectCard(
-                status: 'Awaiting Review',
-                title: 'Subject 3',
-                description: 'Review Uploaded content.',
-                buttonText: 'Review',
-                imageColor: const Color(0xFFC7A8A3),
-                onButtonPressed: () {},
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
   Widget _buildSubjectCard({
-    required String status,
-    required String title,
-    required String description,
-    required String buttonText,
-    required Color imageColor,
-    required VoidCallback onButtonPressed,
+    required String subjectId,
+    required Map<String, dynamic> subjectData,
   }) {
-    final textTheme = Theme.of(context).textTheme;
+    final String name = subjectData['name'] ?? 'Unnamed Subject';
+    final String description = subjectData['description'] ?? 'No description';
+    final String duration = subjectData['duration'] ?? 'Duration not set';
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    // Determine subject status and available actions
+    final bool hasSyllabus = subjectData['hasSyllabus'] ?? false;
+    final bool hasMaterial = subjectData['hasMaterial'] ?? false;
+    final bool hasContent = subjectData['hasContent'] ?? false;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Subject header
+          Row(
             children: [
-              Text(
-                status,
-                style: textTheme.bodySmall?.copyWith(color: Colors.white70),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                title,
-                style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Duration: $duration',
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                description,
-                style: textTheme.bodyMedium?.copyWith(color: Colors.white70),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: onButtonPressed,
-                style: ElevatedButton.styleFrom(
-                  // --- FIX: Replaced deprecated `withOpacity` with `withAlpha` ---
-                  backgroundColor: Colors.white.withAlpha(
-                    230,
-                  ), // 255 * 0.9 = 229.5 -> 230
-                  foregroundColor: Colors.black87,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 10,
-                  ),
-                  elevation: 0,
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: _getSubjectColor(name),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(buttonText),
+                child: const Icon(Icons.school, color: Colors.white, size: 24),
               ),
             ],
           ),
-        ),
-        const SizedBox(width: 16),
-        Container(
-          width: 100,
-          height: 100,
-          decoration: BoxDecoration(
-            color: imageColor,
-            borderRadius: BorderRadius.circular(16),
+          const SizedBox(height: 12),
+          Text(
+            description,
+            style: const TextStyle(color: Colors.white70, fontSize: 14),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
-        ),
-      ],
+          const SizedBox(height: 16),
+
+          // Action buttons
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildActionButton(
+                'Upload Syllabus',
+                Icons.upload_file,
+                hasSyllabus ? Colors.green : Colors.blue,
+                () => _navigateToUpload(subjectId, 'syllabus'),
+                isCompleted: hasSyllabus,
+              ),
+              _buildActionButton(
+                'Upload Material',
+                Icons.library_books,
+                hasMaterial ? Colors.green : Colors.orange,
+                () => _navigateToUpload(subjectId, 'material'),
+                isCompleted: hasMaterial,
+              ),
+              _buildActionButton(
+                'Review Content',
+                Icons.rate_review,
+                hasContent ? Colors.green : Colors.purple,
+                () => _navigateToReview(subjectId),
+                isCompleted: hasContent,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton(
+    String label,
+    IconData icon,
+    Color color,
+    VoidCallback onPressed, {
+    bool isCompleted = false,
+  }) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(isCompleted ? Icons.check_circle : icon, size: 16),
+      label: Text(label),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: isCompleted
+            ? Colors.green.withAlpha(51)
+            : color.withAlpha(51),
+        foregroundColor: isCompleted ? Colors.green : color,
+        side: BorderSide(color: isCompleted ? Colors.green : color),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        elevation: 0,
+      ),
+    );
+  }
+
+  Color _getSubjectColor(String name) {
+    final colors = [
+      const Color(0xFFD6C6C2),
+      const Color(0xFFF2CACA),
+      const Color(0xFFC7A8A3),
+      const Color(0xFFB8A8D6),
+      const Color(0xFFA8D6C6),
+    ];
+    return colors[name.hashCode % colors.length];
+  }
+
+  void _navigateToUpload(String subjectId, String type) {
+    context.push('/kp/upload-content/$subjectId?type=$type');
+  }
+
+  void _navigateToReview(String subjectId) {
+    context.push('/kp/review-content/$subjectId');
+  }
+
+  Widget _buildLoadingSkeleton() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(20),
+      itemCount: 3,
+      itemBuilder: (context, index) {
+        return Container(
+          margin: const EdgeInsets.only(bottom: 24),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E1E1E),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          height: 18,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.white24,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          height: 14,
+                          width: 100,
+                          decoration: BoxDecoration(
+                            color: Colors.white24,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                height: 14,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.school_outlined,
+            size: 80,
+            color: Colors.white.withAlpha(77),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'No Subjects Assigned',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Contact your administrator to get subjects assigned',
+            style: TextStyle(color: Colors.white70, fontSize: 16),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 }

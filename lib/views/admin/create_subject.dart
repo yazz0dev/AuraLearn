@@ -16,9 +16,8 @@ class _CreateSubjectPageState extends State<CreateSubjectPage> {
   int _currentIndex = 2; // Accessed from subjects screen
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _codeController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _creditsController = TextEditingController();
+  final TextEditingController _durationController = TextEditingController();
 
   bool _isActive = true;
   bool _isLoading = false;
@@ -34,9 +33,8 @@ class _CreateSubjectPageState extends State<CreateSubjectPage> {
   @override
   void dispose() {
     _nameController.dispose();
-    _codeController.dispose();
     _descriptionController.dispose();
-    _creditsController.dispose();
+    _durationController.dispose();
     super.dispose();
   }
 
@@ -94,9 +92,8 @@ class _CreateSubjectPageState extends State<CreateSubjectPage> {
     try {
       final subjectData = {
         'name': _nameController.text.trim(),
-        'code': _codeController.text.trim(),
         'description': _descriptionController.text.trim(),
-        'credits': int.tryParse(_creditsController.text.trim()) ?? 0,
+        'duration': _durationController.text.trim(),
         'isActive': _isActive,
         'assignedKpId': _selectedKpId,
         'createdAt': FieldValue.serverTimestamp(),
@@ -182,9 +179,9 @@ class _CreateSubjectPageState extends State<CreateSubjectPage> {
 
               const SizedBox(height: 18),
 
-              // Subject Code
+              // Duration
               const Text(
-                'Subject Code',
+                'Duration',
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
@@ -192,54 +189,13 @@ class _CreateSubjectPageState extends State<CreateSubjectPage> {
               ),
               const SizedBox(height: 8),
               TextFormField(
-                controller: _codeController,
+                controller: _durationController,
                 style: const TextStyle(color: Colors.white),
                 validator: (v) => (v == null || v.trim().isEmpty)
-                    ? 'Please enter subject code'
+                    ? 'Please enter duration'
                     : null,
                 decoration: InputDecoration(
-                  hintText: 'e.g., CS101, MATH201',
-                  hintStyle: const TextStyle(color: Colors.white54),
-                  filled: true,
-                  fillColor: cardBg,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 18),
-
-              // Credits
-              const Text(
-                'Credits',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _creditsController,
-                style: const TextStyle(color: Colors.white),
-                keyboardType: TextInputType.number,
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) {
-                    return 'Please enter credits';
-                  }
-                  final credits = int.tryParse(v.trim());
-                  if (credits == null || credits < 1) {
-                    return 'Please enter valid credits (1 or more)';
-                  }
-                  return null;
-                },
-                decoration: InputDecoration(
-                  hintText: 'Enter credit hours',
+                  hintText: 'e.g., 3 months, 1 semester, 40 hours',
                   hintStyle: const TextStyle(color: Colors.white54),
                   filled: true,
                   fillColor: cardBg,

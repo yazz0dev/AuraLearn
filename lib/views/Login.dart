@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 import '../components/app_layout.dart';
+import '../utils/page_transitions.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -25,10 +26,7 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 200),
-    );
+    _animationController = PageTransitions.createStandardController(vsync: this);
     _animationController.forward();
   }
 
@@ -158,38 +156,27 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Widget _buildAnimatedGlassForm() {
-    return FadeTransition(
-      opacity: _animationController,
-      child: SlideTransition(
-        position: Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero)
-            .animate(
-              CurvedAnimation(
-                parent: _animationController,
-                curve: Curves.easeOut,
-              ),
-            ),
-        child: Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: MediaQuery.of(context).size.width < 400 ? 20 : 28,
-            vertical: MediaQuery.of(context).size.width < 400 ? 24 : 32,
-          ),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1E293B).withAlpha(200),
-            borderRadius: BorderRadius.circular(
-              MediaQuery.of(context).size.width < 400 ? 20 : 24,
-            ),
-            border: Border.all(color: Colors.white.withAlpha(38), width: 1),
-          ),
-          child: Form(key: _formKey, child: _buildFormContents()),
+    return PageTransitions.buildSubtlePageTransition(
+      controller: _animationController,
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: MediaQuery.of(context).size.width < 400 ? 20 : 28,
+          vertical: MediaQuery.of(context).size.width < 400 ? 24 : 32,
         ),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E293B).withAlpha(200),
+          borderRadius: BorderRadius.circular(
+            MediaQuery.of(context).size.width < 400 ? 20 : 24,
+          ),
+          border: Border.all(color: Colors.white.withAlpha(38), width: 1),
+        ),
+        child: Form(key: _formKey, child: _buildFormContents()),
       ),
     );
   }
 
   Widget _buildFormContents() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
+    final formElements = [
         Text(
           'Welcome Back',
           style: TextStyle(
@@ -309,7 +296,18 @@ class _LoginScreenState extends State<LoginScreen>
             ),
           ],
         ),
-      ],
+    ];
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: formElements.asMap().entries.map((entry) {
+        return PageTransitions.buildStaggeredTransition(
+          controller: _animationController,
+          index: entry.key,
+          totalItems: formElements.length,
+          child: entry.value,
+        );
+      }).toList(),
     );
   }
 

@@ -7,6 +7,8 @@ import 'package:auralearn/views/admin/subject_list.dart';
 import 'package:auralearn/views/admin/user_management.dart';
 import 'package:auralearn/views/forgot_password.dart';
 import 'package:auralearn/views/kp/dashboard_kp.dart';
+import 'package:auralearn/views/kp/upload_content.dart';
+import 'package:auralearn/views/kp/review_content_kp.dart';
 import 'package:auralearn/views/login.dart';
 import 'package:auralearn/views/platform_aware_landing.dart';
 import 'package:auralearn/views/student/dashboard.dart';
@@ -41,46 +43,16 @@ final GoRouter router = GoRouter(
       path: '/',
       name: 'home',
       builder: (context, state) {
-        // This builder acts as the new "AuthWrapper". It determines which
-        // screen to show at the root level based on auth state and role.
+        // This route should primarily show the landing page for non-authenticated users
+        // Authenticated users will be redirected by the redirect logic above
         final user = FirebaseAuth.instance.currentUser;
         if (user == null) {
           return const PlatformAwareLandingScreen();
         }
 
-        // If logged in, fetch role and show the correct dashboard.
-        return FutureBuilder<DocumentSnapshot>(
-          future: FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .get(),
-          builder: (context, userSnapshot) {
-            if (userSnapshot.connectionState == ConnectionState.waiting) {
-              return const AuraLearnLoadingWidget();
-            }
-            if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
-              // Edge case: user exists in auth but not in Firestore DB.
-              return const PlatformAwareLandingScreen();
-            }
-            final data = userSnapshot.data!.data() as Map<String, dynamic>;
-            final role = data['role'];
-            debugPrint('User role detected: $role');
-            switch (role) {
-              case 'Admin':
-                debugPrint('Navigating to Admin Dashboard');
-                return const DashboardAdmin();
-              case 'KP':
-                debugPrint('Navigating to KP Dashboard');
-                return const DashboardKP();
-              case 'Student':
-                debugPrint('Navigating to Student Dashboard');
-                return const StudentDashboard();
-              default:
-                debugPrint('Unknown role: $role, showing landing screen');
-                return const PlatformAwareLandingScreen();
-            }
-          },
-        );
+        // Fallback: If somehow an authenticated user reaches here, show loading
+        // while redirect logic handles them
+        return const AuraLearnLoadingWidget();
       },
     ),
     GoRoute(
@@ -184,8 +156,28 @@ final GoRouter router = GoRouter(
       name: 'kp-dashboard',
       builder: (context, state) => const DashboardKP(),
     ),
+    GoRoute(
+      path: '/kp/upload-content/:subjectId',
+      name: 'kp-upload-content',
+      builder: (context, state) {
+        final subjectId = state.pathParameters['subjectId']!;
+        final type = state.uri.queryParameters['type'];
+        return UploadContentPage(
+          subjectId: subjectId,
+          uploadType: type,
+        );
+      },
+    ),
+    GoRoute(
+      path: '/kp/review-content/:subjectId',
+      name: 'kp-review-content',
+      builder: (context, state) {
+        final subjectId = state.pathParameters['subjectId']!;
+        return ReviewContentKPPage(subjectId: subjectId);
+      },
+    ),
   ],
-  redirect: (context, state) {
+  redirect: (context, state) async {
     final bool isLoggedIn = FirebaseAuth.instance.currentUser != null;
     final String location = state.uri.toString();
 
@@ -203,9 +195,37 @@ final GoRouter router = GoRouter(
       return '/login';
     }
 
-    // If the user is logged in but trying to access an auth page, redirect to home.
-    // The home route's builder will then handle routing them to the correct dashboard.
-    if (isLoggedIn && isAuthenticating) {
+    // If the user is logged in but trying to access an auth page or home page,
+    // redirect them to their role-specific dashboard.
+    if (isLoggedIn && (isAuthenticating || location == '/')) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        try {
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
+          
+          if (userDoc.exists) {
+            final data = userDoc.data() as Map<String, dynamic>;
+            final role = data['role'];
+            
+            switch (role) {
+              case 'Admin':
+                return '/admin/dashboard';
+              case 'KP':
+                return '/kp/dashboard';
+              case 'Student':
+                return '/student/dashboard';
+              default:
+                return '/';
+            }
+          }
+        } catch (e) {
+          debugPrint('Error fetching user role: $e');
+          return '/';
+        }
+      }
       return '/';
     }
 

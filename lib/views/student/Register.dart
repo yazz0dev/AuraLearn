@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:time_range_picker/time_range_picker.dart' as time_range;
 import '../../components/app_layout.dart';
 import '../../components/toast.dart';
+import '../../utils/page_transitions.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -41,7 +42,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 200));
+    _animationController = PageTransitions.createStandardController(vsync: this);
     _addListeners();
     _animationController.forward();
   }
@@ -122,65 +123,65 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
   }
 
   Widget _buildAnimatedGlassForm() {
-    return FadeTransition(
-      opacity: _animationController,
-      child: SlideTransition(
-        position: Tween<Offset>(
-          begin: const Offset(0, 0.1),
-          end: Offset.zero,
-        ).animate(CurvedAnimation(
-          parent: _animationController,
-          curve: Curves.easeOut,
-        )),
-        child: Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: MediaQuery.of(context).size.width < 400 ? 20 : 28, 
-            vertical: MediaQuery.of(context).size.width < 400 ? 24 : 32
-          ),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1E293B).withAlpha(200),
-            borderRadius: BorderRadius.circular(MediaQuery.of(context).size.width < 400 ? 20 : 24),
-            border: Border.all(color: Colors.white.withAlpha(38), width: 1),
-          ),
-          child: Form(
-            key: _formKey,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            child: _buildFormContents(),
-          ),
+    return PageTransitions.buildSubtlePageTransition(
+      controller: _animationController,
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: MediaQuery.of(context).size.width < 400 ? 20 : 28, 
+          vertical: MediaQuery.of(context).size.width < 400 ? 24 : 32
+        ),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E293B).withAlpha(200),
+          borderRadius: BorderRadius.circular(MediaQuery.of(context).size.width < 400 ? 20 : 24),
+          border: Border.all(color: Colors.white.withAlpha(38), width: 1),
+        ),
+        child: Form(
+          key: _formKey,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+          child: _buildFormContents(),
         ),
       ),
     );
   }
 
   Widget _buildFormContents() {
+    final formElements = [
+      Text(
+        'Create Your Account', 
+        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+          fontSize: MediaQuery.of(context).size.width < 400 ? 24 : null,
+          fontWeight: FontWeight.bold
+        )
+      ),
+      const SizedBox(height: 32),
+      _buildTextField(_nameController, 'Full Name', Icons.person_outline_rounded, validator: (v) => v!.isEmpty ? 'Please enter your name' : null),
+      const SizedBox(height: 16),
+      _buildTextField(_emailController, 'Email Address', Icons.email_outlined, validator: _validateEmail),
+      const SizedBox(height: 16),
+      _buildTextField(_passwordController, 'Password', Icons.lock_outline_rounded, obscureText: _obscurePassword, suffixIcon: _togglePasswordVisibility(), validator: (v) => v!.length < 6 ? 'Password must be at least 6 characters' : null),
+      const SizedBox(height: 16),
+      _buildTextField(_confirmPasswordController, 'Confirm Password', Icons.lock_person_outlined, obscureText: _obscurePassword, validator: (v) => v != _passwordController.text ? 'Passwords do not match' : null),
+      const SizedBox(height: 16),
+      _buildStreamSelector(),
+      const SizedBox(height: 24),
+      _buildScoreSelector(),
+      const SizedBox(height: 24),
+      _buildAvailabilitySection(),
+      const SizedBox(height: 24),
+      _buildTermsCheckbox(),
+      const SizedBox(height: 32),
+      _buildRegisterButton(),
+    ];
+
     return Column(
-      children: [
-            Text(
-              'Create Your Account', 
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontSize: MediaQuery.of(context).size.width < 400 ? 24 : null,
-                fontWeight: FontWeight.bold
-              )
-            ),
-            const SizedBox(height: 32),
-            _buildTextField(_nameController, 'Full Name', Icons.person_outline_rounded, validator: (v) => v!.isEmpty ? 'Please enter your name' : null),
-            const SizedBox(height: 16),
-            _buildTextField(_emailController, 'Email Address', Icons.email_outlined, validator: _validateEmail),
-            const SizedBox(height: 16),
-            _buildTextField(_passwordController, 'Password', Icons.lock_outline_rounded, obscureText: _obscurePassword, suffixIcon: _togglePasswordVisibility(), validator: (v) => v!.length < 6 ? 'Password must be at least 6 characters' : null),
-            const SizedBox(height: 16),
-            _buildTextField(_confirmPasswordController, 'Confirm Password', Icons.lock_person_outlined, obscureText: _obscurePassword, validator: (v) => v != _passwordController.text ? 'Passwords do not match' : null),
-            const SizedBox(height: 16),
-            _buildStreamSelector(),
-            const SizedBox(height: 24),
-            _buildScoreSelector(),
-            const SizedBox(height: 24),
-            _buildAvailabilitySection(),
-            const SizedBox(height: 24),
-            _buildTermsCheckbox(),
-            const SizedBox(height: 32),
-            _buildRegisterButton(),
-          ],
+      children: formElements.asMap().entries.map((entry) {
+        return PageTransitions.buildStaggeredTransition(
+          controller: _animationController,
+          index: entry.key,
+          totalItems: formElements.length,
+          child: entry.value,
+        );
+      }).toList(),
     );
   }
 

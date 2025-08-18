@@ -10,8 +10,8 @@ class AuthenticatedAppLayout extends StatelessWidget {
   final UserRole role;
   final String appBarTitle;
   final List<Widget>? appBarActions;
-  final int bottomNavIndex;
-  final void Function(int) onBottomNavTap;
+  final int? bottomNavIndex;
+  final void Function(int)? onBottomNavTap;
   final bool showBottomBar; // --- FIX: Ensures this parameter is defined ---
 
   const AuthenticatedAppLayout({
@@ -20,8 +20,8 @@ class AuthenticatedAppLayout extends StatelessWidget {
     required this.role,
     required this.appBarTitle,
     this.appBarActions,
-    required this.bottomNavIndex,
-    required this.onBottomNavTap,
+    this.bottomNavIndex,
+    this.onBottomNavTap,
     this.showBottomBar = true, // FIX: Defines the parameter in the constructor
   });
 
@@ -94,11 +94,11 @@ class AuthenticatedAppLayout extends StatelessWidget {
 
     return Row(
       children: navigationItems.map((item) {
-        final isActive = bottomNavIndex == item.index;
+        final isActive = bottomNavIndex != null && bottomNavIndex == item.index;
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4.0),
           child: TextButton.icon(
-            onPressed: () => onBottomNavTap(item.index),
+            onPressed: () => onBottomNavTap?.call(item.index),
             icon: Icon(
               isActive ? item.activeIcon : item.icon,
               size: 20,
@@ -374,11 +374,11 @@ class AuthenticatedAppLayout extends StatelessWidget {
           automaticallyImplyLeading: false,
         ),
         body: SafeArea(child: child),
-        bottomNavigationBar: showBottomBar && !isDesktop
+        bottomNavigationBar: showBottomBar && !isDesktop && bottomNavIndex != null && onBottomNavTap != null
             ? SharedBottomBar(
                 role: role,
-                currentIndex: bottomNavIndex,
-                onTap: onBottomNavTap,
+                currentIndex: bottomNavIndex!,
+                onTap: onBottomNavTap!,
                 backgroundColor: const Color(0xFF1E1E1E),
                 selectedColor: isStudent ? theme.primaryColor : Colors.white,
                 unselectedColor: Colors.grey[600]!,

@@ -54,7 +54,7 @@ class _DashboardKPState extends State<DashboardKP>
     return AuthenticatedAppLayout(
       role: UserRole.kp,
       appBarTitle: 'My Subjects',
-
+      bottomNavIndex: 0,
       child: _currentUserId == null
           ? const Center(child: CircularProgressIndicator())
           : StreamBuilder<QuerySnapshot>(
@@ -362,6 +362,7 @@ class _DashboardKPState extends State<DashboardKP>
     );
   }
 
+  // --- FIX: Re-added the _buildEmptyState method that was missing. ---
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -383,7 +384,7 @@ class _DashboardKPState extends State<DashboardKP>
           ),
           const SizedBox(height: 8),
           const Text(
-            'Contact your administrator to get subjects assigned',
+            'Contact your administrator to get assigned',
             style: TextStyle(color: Colors.white70, fontSize: 16),
             textAlign: TextAlign.center,
           ),

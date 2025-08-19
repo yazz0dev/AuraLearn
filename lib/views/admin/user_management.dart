@@ -1,5 +1,6 @@
 import 'package:auralearn/components/authenticated_app_layout.dart';
 import 'package:auralearn/components/toast.dart';
+import 'package:auralearn/utils/page_transitions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -15,22 +16,28 @@ class UserManagementScreen extends StatefulWidget {
   State<UserManagementScreen> createState() => _UserManagementScreenState();
 }
 
-class _UserManagementScreenState extends State<UserManagementScreen> with TickerProviderStateMixin {
+class _UserManagementScreenState extends State<UserManagementScreen>
+    with TickerProviderStateMixin {
   int _currentIndex = 1;
   String _search = '';
   String _selectedRole = 'All';
   final List<String> _roles = ['All', 'KP', 'Student', 'Admin'];
   late final AnimationController _shimmerController;
+  late final AnimationController _pageController;
 
   @override
   void initState() {
     super.initState();
-    _shimmerController = AnimationController.unbounded(vsync: this)..repeat(min: -0.5, max: 1.5, period: const Duration(milliseconds: 1200));
+    _shimmerController = AnimationController.unbounded(vsync: this)
+      ..repeat(min: -0.5, max: 1.5, period: const Duration(milliseconds: 1200));
+    _pageController = PageTransitions.createStandardController(vsync: this);
+    _pageController.forward();
   }
 
   @override
   dispose() {
     _shimmerController.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
@@ -61,77 +68,349 @@ class _UserManagementScreenState extends State<UserManagementScreen> with Ticker
     final nameController = TextEditingController();
     final emailController = TextEditingController();
     final passwordController = TextEditingController();
-    String newRole = 'KP'; // Default role
+    bool isKP = true; // Default to KP role
 
     await showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (BuildContext context) {
         bool isLoading = false;
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            return AlertDialog(
-              backgroundColor: const Color(0xFF1E1E1E),
-              title: const Text('Add New User', style: TextStyle(color: Colors.white)),
-              content: Form(
-                key: formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextFormField(
-                        controller: nameController,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: const InputDecoration(labelText: 'Full Name'),
-                        validator: (v) => v!.isEmpty ? 'Name cannot be empty' : null,
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: emailController,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: const InputDecoration(labelText: 'Email Address'),
-                        validator: (v) => (v == null || !v.contains('@')) ? 'Enter a valid email' : null,
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: passwordController,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: const InputDecoration(labelText: 'Password'),
-                        obscureText: true,
-                        validator: (v) => (v!.length < 6) ? 'Password must be at least 6 characters' : null,
-                      ),
-                      const SizedBox(height: 16),
-                      DropdownButtonFormField<String>(
-                        initialValue: newRole,
-                        dropdownColor: const Color(0xFF2C2C2C),
-                        style: const TextStyle(color: Colors.white),
-                        items: ['KP', 'Admin'].map((role) => DropdownMenuItem(value: role, child: Text(role))).toList(),
-                        onChanged: (val) {
-                          if (val != null) newRole = val;
-                        },
-                        decoration: const InputDecoration(labelText: 'Role'),
-                      )
-                    ],
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 500),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E1E1E),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.1),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Form(
+                    key: formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.person_add,
+                                color: Colors.blue,
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            const Expanded(
+                              child: Text(
+                                'Add New User',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () => context.pop(),
+                              icon: const Icon(
+                                Icons.close,
+                                color: Colors.white70,
+                              ),
+                              style: IconButton.styleFrom(
+                                backgroundColor: Colors.white.withValues(
+                                  alpha: 0.1,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 32),
+
+                        // Full Name Field
+                        const Text(
+                          'Full Name',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: nameController,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            hintText: 'Enter full name',
+                            hintStyle: const TextStyle(color: Colors.white54),
+                            filled: true,
+                            fillColor: const Color(0xFF2C2C2C),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 16,
+                            ),
+                          ),
+                          validator: (v) =>
+                              v!.isEmpty ? 'Name cannot be empty' : null,
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Email Field
+                        const Text(
+                          'Email Address',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: emailController,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            hintText: 'Enter email address',
+                            hintStyle: const TextStyle(color: Colors.white54),
+                            filled: true,
+                            fillColor: const Color(0xFF2C2C2C),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 16,
+                            ),
+                          ),
+                          validator: (v) => (v == null || !v.contains('@'))
+                              ? 'Enter a valid email'
+                              : null,
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Password Field
+                        const Text(
+                          'Password',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: passwordController,
+                          style: const TextStyle(color: Colors.white),
+                          obscureText: true,
+                          decoration: InputDecoration(
+                            hintText: 'Enter password (min 6 characters)',
+                            hintStyle: const TextStyle(color: Colors.white54),
+                            filled: true,
+                            fillColor: const Color(0xFF2C2C2C),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 16,
+                            ),
+                          ),
+                          validator: (v) => (v!.length < 6)
+                              ? 'Password must be at least 6 characters'
+                              : null,
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Role Slider
+                        const Text(
+                          'Role',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2C2C2C),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () =>
+                                      setDialogState(() => isKP = true),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isKP
+                                          ? Colors.blue
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      'Knowledge Provider',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: isKP
+                                            ? Colors.white
+                                            : Colors.white70,
+                                        fontWeight: isKP
+                                            ? FontWeight.w600
+                                            : FontWeight.normal,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () =>
+                                      setDialogState(() => isKP = false),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: !isKP
+                                          ? Colors.blue
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      'Admin',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: !isKP
+                                            ? Colors.white
+                                            : Colors.white70,
+                                        fontWeight: !isKP
+                                            ? FontWeight.w600
+                                            : FontWeight.normal,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 32),
+
+                        // Action Buttons
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: isLoading
+                                    ? null
+                                    : () => context.pop(),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.white70,
+                                  side: BorderSide(
+                                    color: Colors.white.withValues(alpha: 0.2),
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Cancel',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: isLoading
+                                    ? null
+                                    : () async {
+                                        if (formKey.currentState!.validate()) {
+                                          setDialogState(
+                                            () => isLoading = true,
+                                          );
+                                          await _handleCreateUser(
+                                            name: nameController.text.trim(),
+                                            email: emailController.text.trim(),
+                                            password: passwordController.text
+                                                .trim(),
+                                            role: isKP ? 'KP' : 'Admin',
+                                          );
+                                          setDialogState(
+                                            () => isLoading = false,
+                                          );
+                                        }
+                                      },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue,
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                ),
+                                child: isLoading
+                                    ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : const Text(
+                                        'Create User',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-              actions: [
-                TextButton(onPressed: () => context.pop(), child: const Text('Cancel')),
-                ElevatedButton(
-                  onPressed: isLoading ? null : () async {
-                    if (formKey.currentState!.validate()) {
-                      setDialogState(() => isLoading = true);
-                      await _handleCreateUser(
-                        name: nameController.text.trim(),
-                        email: emailController.text.trim(),
-                        password: passwordController.text.trim(),
-                        role: newRole,
-                      );
-                      setDialogState(() => isLoading = false);
-                    }
-                  },
-                  child: isLoading ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Add User'),
-                ),
-              ],
             );
           },
         );
@@ -157,38 +436,50 @@ class _UserManagementScreenState extends State<UserManagementScreen> with Ticker
       final tempAuth = FirebaseAuth.instanceFor(app: tempApp);
 
       // Create user in Firebase Auth
-      UserCredential userCredential = await tempAuth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      UserCredential userCredential = await tempAuth
+          .createUserWithEmailAndPassword(email: email, password: password);
 
       // Add user to Firestore
-      await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
-        'uid': userCredential.user!.uid,
-        'name': name,
-        'email': email,
-        'role': role,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .set({
+            'uid': userCredential.user!.uid,
+            'name': name,
+            'email': email,
+            'role': role,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
 
       // Delete the temporary app
       await tempApp.delete();
 
       if (mounted) {
         context.pop(); // Close dialog on success
-        Toast.show(context, 'User created successfully!', type: ToastType.success);
+        Toast.show(
+          context,
+          'User created successfully!',
+          type: ToastType.success,
+        );
       }
     } on FirebaseAuthException catch (e) {
       if (mounted) {
-        Toast.show(context, e.message ?? 'An unknown error occurred.', type: ToastType.error);
+        Toast.show(
+          context,
+          e.message ?? 'An unknown error occurred.',
+          type: ToastType.error,
+        );
       }
     } catch (e) {
-       if (mounted) {
-        Toast.show(context, 'An unexpected error occurred.', type: ToastType.error);
-       }
+      if (mounted) {
+        Toast.show(
+          context,
+          'An unexpected error occurred.',
+          type: ToastType.error,
+        );
+      }
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -197,131 +488,175 @@ class _UserManagementScreenState extends State<UserManagementScreen> with Ticker
       appBarTitle: 'User Management',
       bottomNavIndex: _currentIndex,
       onBottomNavTap: _onNavigate,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: TextField(
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.search, color: Colors.white70),
-                border: InputBorder.none,
-                hintText: 'Search by name or email...',
-                hintStyle: TextStyle(color: Colors.white54),
-                filled: true,
-                fillColor: Color(0xFF1E1E1E),
+      child: PageTransitions.buildSubtlePageTransition(
+        controller: _pageController,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: TextField(
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  prefixIcon: Icon(Icons.search, color: Colors.white70),
+                  border: InputBorder.none,
+                  hintText: 'Search by name or email...',
+                  hintStyle: TextStyle(color: Colors.white54),
+                  filled: true,
+                  fillColor: Color(0xFF1E1E1E),
+                ),
+                onChanged: (val) => setState(() => _search = val),
               ),
-              onChanged: (val) => setState(() => _search = val),
             ),
-          ),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Theme(
-                  data: Theme.of(context).copyWith(canvasColor: const Color(0xFF2C2C2C)),
-                  child: DropdownButton<String>(
-                    value: _selectedRole,
-                    style: const TextStyle(color: Colors.white),
-                    iconEnabledColor: Colors.white70,
-                    underline: Container(),
-                    items: _roles.map((role) => DropdownMenuItem(value: role, child: Text(role))).toList(),
-                    onChanged: (val) => setState(() => _selectedRole = val!),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Theme(
+                    data: Theme.of(
+                      context,
+                    ).copyWith(canvasColor: const Color(0xFF2C2C2C)),
+                    child: DropdownButton<String>(
+                      value: _selectedRole,
+                      style: const TextStyle(color: Colors.white),
+                      iconEnabledColor: Colors.white70,
+                      underline: Container(),
+                      items: _roles
+                          .map(
+                            (role) => DropdownMenuItem(
+                              value: role,
+                              child: Text(role),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (val) => setState(() => _selectedRole = val!),
+                    ),
                   ),
-                ),
-                const Spacer(),
-                ElevatedButton.icon(
-                  onPressed: _showAddUserDialog,
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue.withAlpha(51),
-                    foregroundColor: Colors.blue.shade200,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    elevation: 0,
+                  const Spacer(),
+                  ElevatedButton.icon(
+                    onPressed: _showAddUserDialog,
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Add'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue.withAlpha(51),
+                      foregroundColor: Colors.blue.shade200,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      elevation: 0,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance.collection('users').orderBy('createdAt', descending: true).snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return _buildLoadingSkeleton();
-                }
-                if (snapshot.hasError) {
-                  return const Center(child: Text('Something went wrong.'));
-                }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text('No users found.'));
-                }
+            const SizedBox(height: 16),
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .orderBy('createdAt', descending: true)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return _buildLoadingSkeleton();
+                  }
+                  if (snapshot.hasError) {
+                    return const Center(child: Text('Something went wrong.'));
+                  }
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return const Center(child: Text('No users found.'));
+                  }
 
-                final users = snapshot.data!.docs;
-                final filteredUsers = users.where((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  final name = data['name']?.toLowerCase() ?? '';
-                  final email = data['email']?.toLowerCase() ?? '';
-                  final role = data['role'] ?? '';
+                  final users = snapshot.data!.docs;
+                  final filteredUsers = users.where((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    final name = data['name']?.toLowerCase() ?? '';
+                    final email = data['email']?.toLowerCase() ?? '';
+                    final role = data['role'] ?? '';
 
-                  final matchesRole = _selectedRole == 'All' || role == _selectedRole;
-                  final matchesSearch = name.contains(_search.toLowerCase()) || email.contains(_search.toLowerCase());
-                  
-                  return matchesRole && matchesSearch;
-                }).toList();
+                    final matchesRole =
+                        _selectedRole == 'All' || role == _selectedRole;
+                    final matchesSearch =
+                        name.contains(_search.toLowerCase()) ||
+                        email.contains(_search.toLowerCase());
 
-                return AnimationLimiter(
-                  child: ListView.builder(
-                    itemCount: filteredUsers.length,
-                    itemBuilder: (context, idx) {
-                      final userDoc = filteredUsers[idx];
-                      final userData = userDoc.data() as Map<String, dynamic>;
-                      
-                      return AnimationConfiguration.staggeredList(
-                        position: idx,
-                        duration: const Duration(milliseconds: 375),
-                        child: SlideAnimation(
-                          verticalOffset: 50.0,
-                          child: FadeInAnimation(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(userData['name'] ?? 'No Name', style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.white)),
-                                        Text(userData['email'] ?? 'No Email', style: const TextStyle(color: Colors.white54)),
-                                      ],
+                    return matchesRole && matchesSearch;
+                  }).toList();
+
+                  return AnimationLimiter(
+                    child: ListView.builder(
+                      itemCount: filteredUsers.length,
+                      itemBuilder: (context, idx) {
+                        final userDoc = filteredUsers[idx];
+                        final userData = userDoc.data() as Map<String, dynamic>;
+
+                        return AnimationConfiguration.staggeredList(
+                          position: idx,
+                          duration: const Duration(milliseconds: 375),
+                          child: SlideAnimation(
+                            verticalOffset: 50.0,
+                            child: FadeInAnimation(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            userData['name'] ?? 'No Name',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w500,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                          Text(
+                                            userData['email'] ?? 'No Email',
+                                            style: const TextStyle(
+                                              color: Colors.white54,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF2C2C2C),
-                                      borderRadius: BorderRadius.circular(12)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF2C2C2C),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        userData['role'] ?? 'No Role',
+                                        style: const TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 12,
+                                        ),
+                                      ),
                                     ),
-                                    child: Text(userData['role'] ?? 'No Role', style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -332,11 +667,17 @@ class _UserManagementScreenState extends State<UserManagementScreen> with Ticker
       builder: (context, child) {
         // --- FIX: Corrected variable declaration from `final-gradient` to `final gradient` ---
         final gradient = LinearGradient(
-          colors: const [Color(0xFF121212), Color(0xFF1E1E1E), Color(0xFF121212)],
+          colors: const [
+            Color(0xFF121212),
+            Color(0xFF1E1E1E),
+            Color(0xFF121212),
+          ],
           stops: const [0.4, 0.5, 0.6],
           begin: const Alignment(-1.0, -0.3),
           end: const Alignment(1.0, 0.3),
-          transform: _SlidingGradientTransform(slidePercent: _shimmerController.value),
+          transform: _SlidingGradientTransform(
+            slidePercent: _shimmerController.value,
+          ),
         );
         return ShaderMask(
           blendMode: BlendMode.srcATop,
@@ -356,7 +697,12 @@ class _UserManagementScreenState extends State<UserManagementScreen> with Ticker
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(height: 16, width: 150, color: Colors.white, margin: const EdgeInsets.only(bottom: 6)),
+                      Container(
+                        height: 16,
+                        width: 150,
+                        color: Colors.white,
+                        margin: const EdgeInsets.only(bottom: 6),
+                      ),
                       Container(height: 14, width: 200, color: Colors.white),
                     ],
                   ),
@@ -364,7 +710,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> with Ticker
                 Container(
                   height: 24,
                   width: 60,
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ],
             ),
@@ -376,9 +725,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> with Ticker
 }
 
 class _SlidingGradientTransform extends GradientTransform {
-  const _SlidingGradientTransform({
-    required this.slidePercent,
-  });
+  const _SlidingGradientTransform({required this.slidePercent});
 
   final double slidePercent;
 

@@ -137,6 +137,13 @@ class _CreateSubjectPageState extends State<CreateSubjectPage> {
       appBarTitle: 'Create Subject',
       bottomNavIndex: _currentIndex,
       onBottomNavTap: _onNavigate,
+      appBarActions: [
+        IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => context.go('/admin/subjects'),
+          tooltip: 'Close',
+        ),
+      ],
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         child: Form(

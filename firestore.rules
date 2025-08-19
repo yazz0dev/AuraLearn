@@ -37,14 +37,62 @@ service cloud.firestore {
 
     // Rules for the 'subjects' collection
     match /subjects/{subjectId} {
-      // Anyone authenticated can read subjects
-      allow read: if request.auth != null;
+      // Students and Admins can read all subjects
+      // KPs can only read subjects they're assigned to
+      allow read: if request.auth != null && (
+        isStudent() || 
+        isAdmin() || 
+        (isKP() && resource.data.assignedKpId == request.auth.uid)
+      );
       
       // Only admins can create, update, or delete subjects
       allow create, update, delete: if isAdmin();
       
-      // Allow listing subjects for authenticated users
+      // Students and Admins can list all subjects
+      // KPs can only list subjects (but individual reads will be filtered by the read rule above)
       allow list: if request.auth != null;
+      
+      // Rules for topics subcollection
+      match /topics/{topicId} {
+        // Students and Admins can read all topics
+        // KPs can only read topics for subjects they're assigned to
+        allow read, list: if request.auth != null && (
+          isStudent() || 
+          isAdmin() || 
+          (isKP() && get(/databases/$(database)/documents/subjects/$(subjectId)).data.assignedKpId == request.auth.uid)
+        );
+        
+        // KPs can create/update topics for subjects they're assigned to
+        // Admins can create/update any topics
+        allow create, update: if request.auth != null && (
+          isAdmin() || 
+          (isKP() && get(/databases/$(database)/documents/subjects/$(subjectId)).data.assignedKpId == request.auth.uid)
+        );
+        
+        // Only admins can delete topics
+        allow delete: if isAdmin();
+      }
+      
+      // Rules for other potential subcollections (content, materials, etc.)
+      match /{document=**} {
+        // Students and Admins can read all subcollection documents
+        // KPs can only read subcollections for subjects they're assigned to
+        allow read, list: if request.auth != null && (
+          isStudent() || 
+          isAdmin() || 
+          (isKP() && get(/databases/$(database)/documents/subjects/$(subjectId)).data.assignedKpId == request.auth.uid)
+        );
+        
+        // KPs can write to subcollections of subjects they're assigned to
+        // Admins can write to any subcollections
+        allow create, update: if request.auth != null && (
+          isAdmin() || 
+          (isKP() && get(/databases/$(database)/documents/subjects/$(subjectId)).data.assignedKpId == request.auth.uid)
+        );
+        
+        // Only admins can delete from subcollections
+        allow delete: if isAdmin();
+      }
     }
     
     // Rules for content collections (future use)
@@ -70,6 +118,58 @@ service cloud.firestore {
       allow create, update: if isKP() || isAdmin();
       
       // Only admins can delete assignments
+      allow delete: if isAdmin();
+    }
+    
+    // Rules for uploads collection
+    match /uploads/{uploadId} {
+      // KPs can read their own uploads
+      // Admins can read all uploads
+      allow read: if request.auth != null && (
+        (isKP() && resource.data.uploadedBy == request.auth.uid) || 
+        isAdmin()
+      );
+      
+      // Allow listing uploads for admins (for review queue)
+      allow list: if isAdmin();
+      
+      // KPs can create uploads
+      // Admins can create uploads
+      allow create: if request.auth != null && (isKP() || isAdmin()) &&
+                   request.resource.data.uploadedBy == request.auth.uid;
+      
+      // KPs can update their own uploads
+      // Admins can update any upload (for approval/rejection)
+      allow update: if request.auth != null && (
+        (isKP() && resource.data.uploadedBy == request.auth.uid) ||
+        isAdmin()
+      );
+      
+      // Only admins can delete uploads
+      allow delete: if isAdmin();
+    }
+    
+    // Rules for content_chunks collection (AI-generated content)
+    match /content_chunks/{chunkId} {
+      // Students and Admins can read all content chunks
+      // KPs can read content chunks (individual document access will be filtered by subject assignment)
+      allow read, list: if request.auth != null;
+      
+      // KPs can create content chunks for subjects they're assigned to
+      // Admins can create any content chunks
+      allow create: if request.auth != null && (
+        isAdmin() || 
+        (isKP() && get(/databases/$(database)/documents/subjects/$(request.resource.data.subject_id)).data.assignedKpId == request.auth.uid)
+      );
+      
+      // KPs can update content chunks for subjects they're assigned to
+      // Admins can update any content chunks
+      allow update: if request.auth != null && (
+        isAdmin() || 
+        (isKP() && get(/databases/$(database)/documents/subjects/$(resource.data.subject_id)).data.assignedKpId == request.auth.uid)
+      );
+      
+      // Only admins can delete content chunks
       allow delete: if isAdmin();
     }
   }

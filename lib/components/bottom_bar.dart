@@ -70,17 +70,13 @@ class SharedBottomBar extends StatelessWidget {
     ),
   ];
   
+  // --- FIX: Removed the 'Profile' item as it is not needed for the KP role. ---
   // Items for the KP role
   static const List<BottomNavigationBarItem> _kpItems = [
     BottomNavigationBarItem(
       icon: Icon(Icons.school_outlined),
       activeIcon: Icon(Icons.school),
       label: 'My Subjects',
-    ),
-    BottomNavigationBarItem(
-      icon: Icon(Icons.person_outline),
-      activeIcon: Icon(Icons.person),
-      label: 'Profile',
     ),
   ];
 
@@ -101,20 +97,70 @@ class SharedBottomBar extends StatelessWidget {
     final items = getItemsForRole();
     final safeCurrentIndex = currentIndex >= items.length ? 0 : currentIndex;
 
-    return BottomNavigationBar(
-      currentIndex: safeCurrentIndex,
-      onTap: (index) {
-        debugPrint('Bottom nav tapped: index=$index, role=$role');
-        onTap(index);
-      },
-      backgroundColor: backgroundColor,
-      type: BottomNavigationBarType.fixed,
-      selectedItemColor: selectedColor,
-      unselectedItemColor: unselectedColor,
-      selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-      unselectedLabelStyle: const TextStyle(fontSize: 12),
-      elevation: 8,
-      items: items,
+    return Container(
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        border: Border(
+          top: BorderSide(
+            color: Colors.white.withValues(alpha: 0.1),
+            width: 1,
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: BottomNavigationBar(
+          currentIndex: safeCurrentIndex,
+          onTap: (index) {
+            debugPrint('Bottom nav tapped: index=$index, role=$role');
+            onTap(index);
+          },
+          backgroundColor: Colors.transparent,
+          type: BottomNavigationBarType.fixed,
+          selectedItemColor: selectedColor,
+          unselectedItemColor: unselectedColor,
+          selectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.w600, 
+            fontSize: 12,
+            letterSpacing: 0.5,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+          elevation: 0,
+          items: items.map((item) {
+            final isSelected = items.indexOf(item) == safeCurrentIndex;
+            return BottomNavigationBarItem(
+              icon: Container(
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+                decoration: BoxDecoration(
+                  color: isSelected 
+                    ? selectedColor.withValues(alpha: 0.1)
+                    : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: item.icon,
+              ),
+              activeIcon: Container(
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+                decoration: BoxDecoration(
+                  color: selectedColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: item.activeIcon,
+              ),
+              label: item.label,
+            );
+          }).toList(),
+        ),
+      ),
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:auralearn/components/authenticated_app_layout.dart';
+import 'package:auralearn/utils/page_transitions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
@@ -12,9 +13,10 @@ class SubjectListScreen extends StatefulWidget {
   State<SubjectListScreen> createState() => _SubjectListScreenState();
 }
 
-class _SubjectListScreenState extends State<SubjectListScreen> {
+class _SubjectListScreenState extends State<SubjectListScreen> with TickerProviderStateMixin {
   int _currentIndex = 2; // Subject list is at index 2
   late Stream<QuerySnapshot> _subjectsStream;
+  late final AnimationController _pageController;
 
   @override
   void initState() {
@@ -23,6 +25,14 @@ class _SubjectListScreenState extends State<SubjectListScreen> {
         .collection('subjects')
         .orderBy('createdAt', descending: true)
         .snapshots();
+    _pageController = PageTransitions.createStandardController(vsync: this);
+    _pageController.forward();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   void _onNavigate(int index) {
@@ -59,7 +69,9 @@ class _SubjectListScreenState extends State<SubjectListScreen> {
           tooltip: 'Create Subject',
         ),
       ],
-      child: StreamBuilder<QuerySnapshot>(
+      child: PageTransitions.buildSubtlePageTransition(
+        controller: _pageController,
+        child: StreamBuilder<QuerySnapshot>(
         stream: _subjectsStream,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -116,6 +128,7 @@ class _SubjectListScreenState extends State<SubjectListScreen> {
             ),
           );
         },
+      ),
       ),
     );
   }

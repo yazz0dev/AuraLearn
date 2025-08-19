@@ -1,11 +1,11 @@
+import 'package:auralearn/components/authenticated_app_layout.dart';
+import 'package:auralearn/components/bottom_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:auralearn/components/toast.dart';
 
 class ReviewContentKPPage extends StatefulWidget {
   final String subjectId;
-
   const ReviewContentKPPage({super.key, required this.subjectId});
 
   @override
@@ -13,249 +13,214 @@ class ReviewContentKPPage extends StatefulWidget {
 }
 
 class _ReviewContentKPPageState extends State<ReviewContentKPPage> {
-  Map<String, dynamic>? _subjectData;
-  bool _isLoading = true;
-  bool _isGenerating = false;
+  Future<Map<String, dynamic>>? _contentFuture;
 
   @override
   void initState() {
     super.initState();
-    _loadSubjectData();
+    _contentFuture = _loadTopicsAndContent();
   }
 
-  Future<void> _loadSubjectData() async {
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('subjects')
-          .doc(widget.subjectId)
+  Future<Map<String, dynamic>> _loadTopicsAndContent() async {
+    final subjectDoc = await FirebaseFirestore.instance
+        .collection('subjects')
+        .doc(widget.subjectId)
+        .get();
+
+    if (!subjectDoc.exists) throw Exception('Subject not found');
+
+    final topicsSnapshot =
+        await subjectDoc.reference.collection('topics').orderBy('order').get();
+
+    List<Map<String, dynamic>> topicsWithContent = [];
+
+    for (final topicDoc in topicsSnapshot.docs) {
+      final chunksSnapshot = await FirebaseFirestore.instance
+          .collection('content_chunks')
+          .where('topic_id', isEqualTo: topicDoc.id)
+          .orderBy('order')
           .get();
 
-      if (doc.exists) {
-        setState(() {
-          _subjectData = doc.data();
-          _isLoading = false;
-        });
-      } else {
-        if (mounted) {
-          Toast.show(context, 'Subject not found', type: ToastType.error);
-          context.pop();
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        Toast.show(context, 'Error loading subject: $e', type: ToastType.error);
-        setState(() => _isLoading = false);
-      }
+      topicsWithContent.add({
+        'topicId': topicDoc.id,
+        'topic': topicDoc.data(),
+        'chunks': chunksSnapshot.docs.map((d) => d.data()).toList(),
+      });
     }
-  }
 
-  Future<void> _generateContent() async {
-    setState(() => _isGenerating = true);
-
-    try {
-      // Simulate content generation
-      await Future.delayed(const Duration(seconds: 3));
-
-      // Update subject to mark content as generated
-      await FirebaseFirestore.instance
-          .collection('subjects')
-          .doc(widget.subjectId)
-          .update({
-            'hasContent': true,
-            'contentGeneratedAt': FieldValue.serverTimestamp(),
-          });
-
-      if (mounted) {
-        Toast.show(
-          context,
-          'Content generated successfully!',
-          type: ToastType.success,
-        );
-        context.pop();
-      }
-    } catch (e) {
-      if (mounted) {
-        Toast.show(
-          context,
-          'Failed to generate content: $e',
-          type: ToastType.error,
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isGenerating = false);
-      }
-    }
+    return {
+      'subject': subjectDoc.data(),
+      'topicsWithContent': topicsWithContent
+    };
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return Scaffold(
-        appBar: AppBar(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          elevation: 0,
-          centerTitle: true,
-          leading: IconButton(
-            icon: Icon(
-              Icons.arrow_back,
-              color: Theme.of(context).textTheme.titleLarge?.color,
-            ),
-            onPressed: () => context.pop(),
-          ),
-          title: const Text('Loading...'),
+    return AuthenticatedAppLayout(
+      role: UserRole.kp,
+      appBarTitle: 'Review Content',
+      bottomNavIndex: 0,
+      showBottomBar: false,
+      appBarActions: [
+        IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/kp/dashboard');
+            }
+          },
         ),
-        body: const Center(child: CircularProgressIndicator()),
-      );
-    }
+      ],
+      child: FutureBuilder<Map<String, dynamic>>(
+        future: _contentFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+          if (!snapshot.hasData) {
+            return const Center(child: Text('No content found.'));
+          }
 
-    final subjectName = _subjectData?['name'] ?? 'Subject';
-    final hasSyllabus = _subjectData?['hasSyllabus'] ?? false;
-    final hasMaterial = _subjectData?['hasMaterial'] ?? false;
+          final data = snapshot.data!;
+          final subject = data['subject'];
+          final topicsWithContent =
+              data['topicsWithContent'] as List<Map<String, dynamic>>;
 
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back,
-            color: Theme.of(context).textTheme.titleLarge?.color,
-          ),
-          onPressed: () => context.pop(),
-        ),
-        title: Text(
-          'Review: $subjectName',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 8),
-
-            // Status cards
-            _buildStatusCard(
-              'Syllabus',
-              hasSyllabus ? 'Uploaded' : 'Not uploaded',
-              hasSyllabus ? Icons.check_circle : Icons.pending,
-              hasSyllabus ? Colors.green : Colors.orange,
-            ),
-            const SizedBox(height: 12),
-            _buildStatusCard(
-              'Study Material',
-              hasMaterial ? 'Uploaded' : 'Not uploaded',
-              hasMaterial ? Icons.check_circle : Icons.pending,
-              hasMaterial ? Colors.green : Colors.orange,
-            ),
-
-            const SizedBox(height: 32),
-
-            // Content generation section
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E1E1E),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white12),
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Text(
+                subject['name'],
+                style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'AI Content Generation',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    hasSyllabus && hasMaterial
-                        ? 'Ready to generate AI content from uploaded materials'
-                        : 'Upload both syllabus and study material to generate content',
-                    style: const TextStyle(color: Colors.white70),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: (hasSyllabus && hasMaterial && !_isGenerating)
-                          ? _generateContent
-                          : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.deepPurple,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                      ),
-                      child: _isGenerating
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text(
-                              'Generate AI Content',
-                              style: TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                    ),
-                  ),
-                ],
+              const SizedBox(height: 8),
+              const Text(
+                'Below is the content generated by AI for each topic. Please review for accuracy and completeness. The content is currently pending admin approval.',
+                style: TextStyle(color: Colors.white70),
               ),
-            ),
-
-            const SizedBox(height: 40),
-          ],
-        ),
+              const Divider(height: 32),
+              if (topicsWithContent.isEmpty)
+                _buildEmptyState()
+              else
+                ...topicsWithContent.map((item) => _buildTopicCard(item)),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildStatusCard(
-    String title,
-    String status,
-    IconData icon,
-    Color color,
-  ) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withAlpha(25),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withAlpha(76)),
-      ),
-      child: Row(
+  Widget _buildTopicCard(Map<String, dynamic> item) {
+    final topic = item['topic'];
+    final chunks = item['chunks'] as List<dynamic>;
+
+    Color statusColor;
+    String statusText =
+        (topic['status'] as String).replaceAll('_', ' ').toUpperCase();
+    switch (topic['status']) {
+      case 'approved':
+        statusColor = Colors.green;
+        break;
+      case 'rejected':
+        statusColor = Colors.red;
+        break;
+      default:
+        statusColor = Colors.orange;
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: ExpansionTile(
+        title: Text(
+          topic['title'],
+          style: const TextStyle(
+              fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        subtitle: Text(
+          'Status: $statusText',
+          style: TextStyle(color: statusColor, fontWeight: FontWeight.w500),
+        ),
         children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(width: 12),
-          Expanded(
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-                Text(status, style: TextStyle(color: color, fontSize: 12)),
-              ],
+              children: chunks.isEmpty
+                  ? [
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16.0),
+                        child:
+                            Text('No content chunks found for this topic.'),
+                      )
+                    ]
+                  : chunks.map((chunk) => _buildContentChunk(chunk)).toList(),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildContentChunk(Map<String, dynamic> chunk) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        // FIX: Replaced deprecated `withOpacity` with `withAlpha`.
+        color: Colors.black.withAlpha((0.2 * 255).round()),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white12, width: 0.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            chunk['title'],
+            style: TextStyle(
+                fontWeight: FontWeight.w600, color: Colors.blue[300]),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            chunk['content'],
+            style: const TextStyle(color: Colors.white70, height: 1.5),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 48.0),
+        child: Column(
+          children: const [
+            Icon(Icons.inbox_outlined, size: 64, color: Colors.white38),
+            SizedBox(height: 16),
+            Text(
+              'No Content Generated Yet',
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Use the upload content feature to generate topics and learning materials.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white70),
+            ),
+          ],
+        ),
       ),
     );
   }

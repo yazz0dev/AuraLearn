@@ -1,9 +1,9 @@
 import 'package:auralearn/components/authenticated_app_layout.dart';
-// import 'package:auralearn/views/admin/user_management.dart'; // No longer needed for navigation
+import 'package:auralearn/utils/page_transitions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
-import 'package:go_router/go_router.dart'; // Import go_router
+import 'package:go_router/go_router.dart';
 import '../../components/bottom_bar.dart';
 
 class DashboardAdmin extends StatefulWidget {
@@ -17,17 +17,21 @@ class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStat
   int _currentIndex = 0;
   late Future<Map<String, int>> _userCountsFuture;
   late final AnimationController _shimmerController;
+  late final AnimationController _pageController;
 
   @override
   void initState() {
     super.initState();
     _userCountsFuture = _fetchUserCounts();
     _shimmerController = AnimationController.unbounded(vsync: this)..repeat(min: -0.5, max: 1.5, period: const Duration(milliseconds: 1200));
+    _pageController = PageTransitions.createStandardController(vsync: this);
+    _pageController.forward();
   }
   
   @override
   dispose() {
     _shimmerController.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
@@ -90,8 +94,10 @@ class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStat
 
           final counts = snapshot.data!;
 
-          return AnimationLimiter(
-            child: SingleChildScrollView(
+          return PageTransitions.buildSubtlePageTransition(
+            controller: _pageController,
+            child: AnimationLimiter(
+              child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -200,6 +206,7 @@ class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStat
                   ],
                 ),
               ),
+            ),
             ),
           );
         },

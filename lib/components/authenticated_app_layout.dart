@@ -92,36 +92,53 @@ class AuthenticatedAppLayout extends StatelessWidget {
   Widget _buildDesktopNavigation(BuildContext context) {
     final navigationItems = _getNavigationItems();
 
-    return Row(
-      children: navigationItems.map((item) {
-        final isActive = bottomNavIndex != null && bottomNavIndex == item.index;
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4.0),
-          child: TextButton.icon(
-            onPressed: () => onBottomNavTap?.call(item.index),
-            icon: Icon(
-              isActive ? item.activeIcon : item.icon,
-              size: 20,
-              color: isActive ? Colors.white : Colors.white70,
-            ),
-            label: Text(
-              item.label,
-              style: TextStyle(
-                color: isActive ? Colors.white : Colors.white70,
-                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.1),
+          width: 1,
+        ),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: navigationItems.map((item) {
+            final isActive = bottomNavIndex != null && bottomNavIndex == item.index;
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2.0),
+              child: TextButton.icon(
+                onPressed: () => onBottomNavTap?.call(item.index),
+                icon: Icon(
+                  isActive ? item.activeIcon : item.icon,
+                  size: 18,
+                  color: isActive ? Colors.white : Colors.white70,
+                ),
+                label: Text(
+                  item.label,
+                  style: TextStyle(
+                    color: isActive ? Colors.white : Colors.white70,
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                    fontSize: 14,
+                  ),
+                ),
+                style: TextButton.styleFrom(
+                  backgroundColor: isActive
+                      ? Colors.white.withValues(alpha: 0.1)
+                      : Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
               ),
-            ),
-            style: TextButton.styleFrom(
-              backgroundColor: isActive
-                  ? Colors.white.withValues(alpha: 0.1)
-                  : Colors.transparent,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ),
-        );
-      }).toList(),
+            );
+          }).toList(),
+        ),
+      ),
     );
   }
 
@@ -352,22 +369,51 @@ class AuthenticatedAppLayout extends StatelessWidget {
         appBar: AppBar(
           title: Row(
             children: [
-              Text(appBarTitle),
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    appBarTitle,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
               if (isDesktop) ...[
-                const SizedBox(width: 32),
+                const SizedBox(width: 16),
                 Expanded(child: _buildDesktopNavigation(context)),
               ],
             ],
           ),
           actions: [
             if (appBarActions != null) ...appBarActions!,
-            IconButton(
-              icon: const Icon(Icons.logout),
-              onPressed: () {
-                debugPrint('Logout icon button tapped');
-                _handleLogout(context);
-              },
-              tooltip: 'Logout',
+            Container(
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Colors.red.withValues(alpha: 0.3),
+                  width: 1,
+                ),
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.logout, size: 20),
+                onPressed: () {
+                  debugPrint('Logout icon button tapped');
+                  _handleLogout(context);
+                },
+                tooltip: 'Logout',
+                color: Colors.red.shade300,
+              ),
             ),
             const SizedBox(width: 8),
           ],

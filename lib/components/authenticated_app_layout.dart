@@ -1,18 +1,20 @@
 import 'package:auralearn/components/toast.dart';
 import 'package:auralearn/utils/responsive.dart';
+import 'package:auralearn/utils/page_transitions.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'bottom_bar.dart';
 
-class AuthenticatedAppLayout extends StatelessWidget {
+class AuthenticatedAppLayout extends StatefulWidget {
   final Widget child;
   final UserRole role;
   final String appBarTitle;
   final List<Widget>? appBarActions;
   final int? bottomNavIndex;
   final void Function(int)? onBottomNavTap;
-  final bool showBottomBar; // --- FIX: Ensures this parameter is defined ---
+  final bool showBottomBar;
+  final bool showCloseButton;
 
   const AuthenticatedAppLayout({
     super.key,
@@ -22,12 +24,50 @@ class AuthenticatedAppLayout extends StatelessWidget {
     this.appBarActions,
     this.bottomNavIndex,
     this.onBottomNavTap,
-    this.showBottomBar = true, // FIX: Defines the parameter in the constructor
+    this.showBottomBar = true,
+    this.showCloseButton = false,
   });
+
+  @override
+  State<AuthenticatedAppLayout> createState() => _AuthenticatedAppLayoutState();
+}
+
+class _AuthenticatedAppLayoutState extends State<AuthenticatedAppLayout>
+    with TickerProviderStateMixin {
+  late AnimationController _pageController;
+  late AnimationController _shimmerController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageTransitions.createStandardController(vsync: this);
+    _shimmerController = AnimationController.unbounded(vsync: this)
+      ..repeat(min: -0.5, max: 1.5, period: const Duration(milliseconds: 1200));
+
+    _pageController.forward();
+  }
+
+  @override
+  void didUpdateWidget(AuthenticatedAppLayout oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // Handle child changes with smooth transitions
+    if (oldWidget.child.key != widget.child.key) {
+      _pageController.reset();
+      _pageController.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _shimmerController.dispose();
+    super.dispose();
+  }
 
   // Get navigation items based on role
   List<NavigationItem> _getNavigationItems() {
-    switch (role) {
+    switch (widget.role) {
       case UserRole.student:
         return [
           NavigationItem(
@@ -77,14 +117,7 @@ class AuthenticatedAppLayout extends StatelessWidget {
           ),
         ];
       case UserRole.kp:
-        return [
-          NavigationItem(
-            icon: Icons.school_outlined,
-            activeIcon: Icons.school,
-            label: 'My Subjects',
-            index: 0,
-          ),
-        ];
+        return [];
     }
   }
 
@@ -107,11 +140,11 @@ class AuthenticatedAppLayout extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: navigationItems.map((item) {
-            final isActive = bottomNavIndex != null && bottomNavIndex == item.index;
+            final isActive = widget.bottomNavIndex != null && widget.bottomNavIndex == item.index;
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 2.0),
               child: TextButton.icon(
-                onPressed: () => onBottomNavTap?.call(item.index),
+                onPressed: () => widget.onBottomNavTap?.call(item.index),
                 icon: Icon(
                   isActive ? item.activeIcon : item.icon,
                   size: 18,
@@ -137,6 +170,52 @@ class AuthenticatedAppLayout extends StatelessWidget {
               ),
             );
           }).toList(),
+        ),
+      ),
+    );
+  }
+
+  bool _shouldShowLogoutButton(BuildContext context) {
+    // Only show logout button for dashboard views
+    final isDashboardView = widget.appBarTitle == 'Dashboard' ||
+                           widget.appBarTitle == 'AuraLearn Admin' ||
+                           widget.appBarTitle == 'My Subjects';
+
+    return isDashboardView && (widget.role == UserRole.admin || widget.role == UserRole.kp);
+  }
+
+  Widget _buildCloseButton() {
+    return Container(
+      margin: const EdgeInsets.only(right: 8),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              // If can't pop, navigate to a safe route like dashboard
+              context.go('/${widget.role.name}/dashboard');
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.2),
+                width: 1,
+              ),
+            ),
+            child: const Icon(
+              Icons.close,
+              color: Colors.white70,
+              size: 20,
+            ),
+          ),
         ),
       ),
     );
@@ -315,8 +394,8 @@ class AuthenticatedAppLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    bool isStudent = role == UserRole.student;
-    bool isKp = role == UserRole.kp;
+    bool isStudent = widget.role == UserRole.student;
+    bool isKp = widget.role == UserRole.kp;
     bool isDesktop = ResponsiveUtils.isDesktop(context);
 
     final ThemeData theme = ThemeData.dark().copyWith(
@@ -367,64 +446,107 @@ class AuthenticatedAppLayout extends StatelessWidget {
       data: theme,
       child: Scaffold(
         appBar: AppBar(
-          title: Row(
-            children: [
-              Flexible(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    appBarTitle,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.5,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
+          title: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              widget.appBarTitle,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
               ),
-              if (isDesktop) ...[
-                const SizedBox(width: 16),
-                Expanded(child: _buildDesktopNavigation(context)),
-              ],
-            ],
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
           actions: [
-            if (appBarActions != null) ...appBarActions!,
-            Container(
-              margin: const EdgeInsets.only(right: 8),
-              decoration: BoxDecoration(
-                color: Colors.red.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: Colors.red.withValues(alpha: 0.3),
-                  width: 1,
+            if (widget.showCloseButton) _buildCloseButton(),
+            if (widget.appBarActions != null) ...widget.appBarActions!,
+            if (isDesktop) ...[
+              const SizedBox(width: 8),
+              _buildDesktopNavigation(context),
+              const SizedBox(width: 8),
+            ],
+            if (_shouldShowLogoutButton(context)) ...[
+              Container(
+                margin: const EdgeInsets.only(right: 8),
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () {
+                      debugPrint('Logout button tapped');
+                      _handleLogout(context);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.red.withValues(alpha: 0.1),
+                            Colors.red.withValues(alpha: 0.05),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.red.withValues(alpha: 0.2),
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.red.withValues(alpha: 0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.logout_rounded,
+                            size: 18,
+                            color: Colors.red.shade400,
+                          ),
+                          if (!ResponsiveUtils.isMobile(context)) ...[
+                            const SizedBox(width: 6),
+                            Text(
+                              'Logout',
+                              style: TextStyle(
+                                color: Colors.red.shade400,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
-              child: IconButton(
-                icon: const Icon(Icons.logout, size: 20),
-                onPressed: () {
-                  debugPrint('Logout icon button tapped');
-                  _handleLogout(context);
-                },
-                tooltip: 'Logout',
-                color: Colors.red.shade300,
-              ),
-            ),
-            const SizedBox(width: 8),
+              const SizedBox(width: 8),
+            ],
           ],
           automaticallyImplyLeading: false,
+          centerTitle: true,
         ),
-        body: SafeArea(child: child),
-        bottomNavigationBar: showBottomBar && !isDesktop && bottomNavIndex != null && onBottomNavTap != null
+        body: SafeArea(
+          child: PageTransitions.buildSubtlePageTransition(
+            controller: _pageController,
+            child: widget.child,
+          ),
+        ),
+        bottomNavigationBar: widget.showBottomBar && !isDesktop && widget.bottomNavIndex != null && widget.onBottomNavTap != null
             ? SharedBottomBar(
-                role: role,
-                currentIndex: bottomNavIndex!,
-                onTap: onBottomNavTap!,
+                role: widget.role,
+                currentIndex: widget.bottomNavIndex!,
+                onTap: widget.onBottomNavTap!,
                 backgroundColor: const Color(0xFF1E1E1E),
                 selectedColor: isStudent ? theme.primaryColor : Colors.white,
                 unselectedColor: Colors.grey[600]!,

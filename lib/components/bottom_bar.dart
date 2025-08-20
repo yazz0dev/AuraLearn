@@ -138,23 +138,35 @@ class SharedBottomBar extends StatelessWidget {
           items: items.map((item) {
             final isSelected = items.indexOf(item) == safeCurrentIndex;
             return BottomNavigationBarItem(
-              icon: Container(
+              icon: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
                 padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
                 decoration: BoxDecoration(
-                  color: isSelected 
+                  color: isSelected
                     ? selectedColor.withValues(alpha: 0.1)
                     : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: item.icon,
+                child: AnimatedScale(
+                  duration: const Duration(milliseconds: 200),
+                  scale: isSelected ? 1.1 : 1.0,
+                  child: item.icon,
+                ),
               ),
-              activeIcon: Container(
+              activeIcon: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
                 padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
                 decoration: BoxDecoration(
                   color: selectedColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: item.activeIcon,
+                child: AnimatedScale(
+                  duration: const Duration(milliseconds: 200),
+                  scale: 1.1,
+                  child: item.activeIcon,
+                ),
               ),
               label: item.label,
             );

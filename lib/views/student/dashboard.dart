@@ -1,9 +1,9 @@
 import 'package:auralearn/components/authenticated_app_layout.dart';
 import 'package:auralearn/components/bottom_bar.dart';
+import 'package:auralearn/components/skeleton_loader.dart';
+import 'package:auralearn/services/user_data_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 
 class StudentDashboard extends StatefulWidget {
@@ -24,6 +24,7 @@ class _StudentDashboardState extends State<StudentDashboard> with SingleTickerPr
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
+
     _animationController.forward();
   }
 
@@ -35,30 +36,40 @@ class _StudentDashboardState extends State<StudentDashboard> with SingleTickerPr
 
   void _onBottomNavTap(int index) {
     if (index == _currentIndex) return;
-    
+
+    // Handle navigation based on index with smooth transitions
+    _navigateWithTransition(index);
+  }
+
+  void _navigateWithTransition(int index) {
+    // Show a subtle loading transition
     setState(() {
       _currentIndex = index;
     });
-    
-    // Handle navigation based on index
-    switch (index) {
-      case 0:
-        // Dashboard - already here
-        if (mounted) context.go('/student/dashboard');
-        break;
-      case 1:
-        // Subjects - navigate to subjects screen
-        if (mounted) context.go('/student/subjects');
-        break;
-      case 2:
-        // Schedule - navigate to schedule screen
-        if (mounted) context.go('/student/schedule');
-        break;
-      case 3:
-        // Progress - navigate to progress screen
-        if (mounted) context.go('/student/progress');
-        break;
-    }
+
+    // Add a small delay for smooth transition feel
+    Future.delayed(const Duration(milliseconds: 150), () {
+      if (!mounted) return;
+
+      switch (index) {
+        case 0:
+          // Dashboard - already here
+          context.go('/student/dashboard');
+          break;
+        case 1:
+          // Subjects - navigate to subjects screen
+          context.go('/student/subjects');
+          break;
+        case 2:
+          // Schedule - navigate to schedule screen
+          context.go('/student/schedule');
+          break;
+        case 3:
+          // Progress - navigate to progress screen
+          context.go('/student/progress');
+          break;
+      }
+    });
   }
 
   @override
@@ -89,37 +100,46 @@ class _StudentDashboardState extends State<StudentDashboard> with SingleTickerPr
   }
 
   Widget _buildBody() {
-    return AnimationLimiter(
-      child: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        children: AnimationConfiguration.toStaggeredList(
-          duration: const Duration(milliseconds: 200),
-          childAnimationBuilder: (widget) => SlideAnimation(
-            verticalOffset: 15.0,
-            child: FadeInAnimation(child: widget),
-          ),
-          children: [
-            const SizedBox(height: 20),
-            FutureBuilder<String>(
-              future: _getUserName(),
-              builder: (context, snapshot) {
-                final name = snapshot.data ?? 'Student';
-                return Text(
-                  'Welcome back, $name!',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 26),
-                );
-              },
+    return FutureBuilder<String>(
+      future: UserDataService().getUserName(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return _buildLoadingSkeleton();
+        }
+
+        return AnimationLimiter(
+          child: ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            children: AnimationConfiguration.toStaggeredList(
+              duration: const Duration(milliseconds: 200),
+              childAnimationBuilder: (widget) => SlideAnimation(
+                verticalOffset: 15.0,
+                child: FadeInAnimation(child: widget),
+              ),
+              children: [
+                const SizedBox(height: 20),
+                FutureBuilder<String>(
+                  future: UserDataService().getUserName(),
+                  builder: (context, snapshot) {
+                    final name = snapshot.data ?? 'Student';
+                    return Text(
+                      'Welcome back, $name!',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 26),
+                    );
+                  },
+                ),
+                const SizedBox(height: 30),
+                _buildSubjectCard(),
+                const SizedBox(height: 30),
+                _buildProgressSection(),
+                const SizedBox(height: 30),
+                _buildUpcomingTopicsSection(),
+                const SizedBox(height: 20),
+              ],
             ),
-            const SizedBox(height: 30),
-            _buildSubjectCard(),
-            const SizedBox(height: 30),
-            _buildProgressSection(),
-            const SizedBox(height: 30),
-            _buildUpcomingTopicsSection(),
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -161,24 +181,49 @@ class _StudentDashboardState extends State<StudentDashboard> with SingleTickerPr
     );
   }
 
-  Future<String> _getUserName() async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return 'Student';
-      
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-      
-      if (doc.exists && doc.data() != null) {
-        return doc.data()!['name'] ?? 'Student';
-      }
-      return 'Student';
-    } catch (e) {
-      debugPrint('Error fetching user name: $e');
-      return 'Student';
-    }
+
+
+  Widget _buildLoadingSkeleton() {
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      children: [
+        const SizedBox(height: 20),
+        // Welcome text skeleton
+        SkeletonLoader(
+          isLoading: true,
+          child: SkeletonShapes.text(width: 250, height: 32),
+        ),
+        const SizedBox(height: 30),
+        // Subject card skeleton
+        SkeletonLoader(
+          isLoading: true,
+          child: SkeletonShapes.card(height: 120),
+        ),
+        const SizedBox(height: 30),
+        // Progress section skeleton
+        SkeletonLoader(
+          isLoading: true,
+          child: SkeletonShapes.text(width: 100, height: 20),
+        ),
+        const SizedBox(height: 16),
+        SkeletonLoader(
+          isLoading: true,
+          child: SkeletonShapes.card(height: 120),
+        ),
+        const SizedBox(height: 30),
+        // Upcoming topics skeleton
+        SkeletonLoader(
+          isLoading: true,
+          child: SkeletonShapes.text(width: 150, height: 20),
+        ),
+        const SizedBox(height: 16),
+        SkeletonLoader(
+          isLoading: true,
+          child: SkeletonShapes.card(height: 120),
+        ),
+        const SizedBox(height: 20),
+      ],
+    );
   }
 
   Widget _buildEmptyStateCard(String title, String subtitle, IconData icon) {
@@ -215,3 +260,5 @@ class _StudentDashboardState extends State<StudentDashboard> with SingleTickerPr
     );
   }
 }
+
+

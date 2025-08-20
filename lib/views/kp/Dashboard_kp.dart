@@ -1,5 +1,6 @@
 import 'package:auralearn/components/authenticated_app_layout.dart';
 import 'package:auralearn/components/bottom_bar.dart';
+import 'package:auralearn/components/skeleton_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -301,61 +302,44 @@ class _DashboardKPState extends State<DashboardKP>
       itemBuilder: (context, index) {
         return Container(
           margin: const EdgeInsets.only(bottom: 24),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1E1E1E),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white12),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+          child: SkeletonLoader(
+            isLoading: true,
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          height: 18,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: Colors.white24,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SkeletonShapes.text(width: double.infinity, height: 18),
+                            const SizedBox(height: 8),
+                            SkeletonShapes.text(width: 100, height: 14),
+                          ],
                         ),
-                        const SizedBox(height: 8),
-                        Container(
-                          height: 14,
-                          width: 100,
-                          decoration: BoxDecoration(
-                            color: Colors.white24,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
+                      ),
+                      Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: Colors.white24,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
+                  const SizedBox(height: 12),
+                  SkeletonShapes.text(width: double.infinity, height: 14),
                 ],
               ),
-              const SizedBox(height: 12),
-              Container(
-                height: 14,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-            ],
+            ),
           ),
         );
       },
@@ -393,3 +377,5 @@ class _DashboardKPState extends State<DashboardKP>
     );
   }
 }
+
+

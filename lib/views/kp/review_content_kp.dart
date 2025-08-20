@@ -1,7 +1,7 @@
 import 'package:auralearn/components/authenticated_app_layout.dart';
 import 'package:auralearn/components/bottom_bar.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ReviewContentKPPage extends StatefulWidget {
@@ -61,18 +61,7 @@ class _ReviewContentKPPageState extends State<ReviewContentKPPage> {
       appBarTitle: 'Review Content',
       bottomNavIndex: 0,
       showBottomBar: false,
-      appBarActions: [
-        IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () {
-            if (context.canPop()) {
-              context.pop();
-            } else {
-              context.go('/kp/dashboard');
-            }
-          },
-        ),
-      ],
+      showCloseButton: true,
       child: FutureBuilder<Map<String, dynamic>>(
         future: _contentFuture,
         builder: (context, snapshot) {

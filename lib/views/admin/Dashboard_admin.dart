@@ -1,4 +1,5 @@
 import 'package:auralearn/components/authenticated_app_layout.dart';
+import 'package:auralearn/components/skeleton_loader.dart';
 import 'package:auralearn/utils/page_transitions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -16,21 +17,19 @@ class DashboardAdmin extends StatefulWidget {
 class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStateMixin {
   int _currentIndex = 0;
   late Future<Map<String, int>> _userCountsFuture;
-  late final AnimationController _shimmerController;
+
   late final AnimationController _pageController;
 
   @override
   void initState() {
     super.initState();
     _userCountsFuture = _fetchUserCounts();
-    _shimmerController = AnimationController.unbounded(vsync: this)..repeat(min: -0.5, max: 1.5, period: const Duration(milliseconds: 1200));
     _pageController = PageTransitions.createStandardController(vsync: this);
     _pageController.forward();
   }
   
   @override
   dispose() {
-    _shimmerController.dispose();
     _pageController.dispose();
     super.dispose();
   }
@@ -53,23 +52,34 @@ class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStat
   void _onNavigate(int index) {
     if (index == _currentIndex) return;
 
+    // Handle navigation based on index with smooth transitions
+    _navigateWithTransition(index);
+  }
+
+  void _navigateWithTransition(int index) {
+    // Show a subtle loading transition
     setState(() {
       _currentIndex = index;
     });
 
-    switch (index) {
-      case 0:
-        // Dashboard - already here, no navigation needed
-        break;
-      case 1:
-        // Navigate to user management screen
-        context.go('/admin/users');
-        break;
-      case 2:
-        // Navigate to subjects screen
-        context.go('/admin/subjects');
-        break;
-    }
+    // Add a small delay for smooth transition feel
+    Future.delayed(const Duration(milliseconds: 150), () {
+      if (!mounted) return;
+
+      switch (index) {
+        case 0:
+          // Dashboard - already here, no navigation needed
+          break;
+        case 1:
+          // Navigate to user management screen
+          context.go('/admin/users');
+          break;
+        case 2:
+          // Navigate to subjects screen
+          context.go('/admin/subjects');
+          break;
+      }
+    });
   }
 
   @override
@@ -173,31 +183,6 @@ class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStat
                         ),
                       ],
                     ),
-                    const SizedBox(height: 20),
-                    // Review Content card (full width)
-                    GestureDetector(
-                      onTap: () {
-                        if (!mounted) return;
-                        context.go('/admin/review-content');
-                      },
-                      child: Container(
-                        height: 72,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white12,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.white12),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(width: 56, height: 56, decoration: BoxDecoration(color: Colors.pink.withAlpha(60), borderRadius: BorderRadius.circular(12))),
-                            const SizedBox(width: 12),
-                            Expanded(child: Text('Review Content', style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white))),
-                            const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.white70),
-                          ],
-                        ),
-                      ),
-                    ),
                     const SizedBox(height: 32),
                     const Text('Review Queue', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
                     const SizedBox(height: 16),
@@ -217,65 +202,64 @@ class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStat
   Widget _buildLoadingSkeleton() {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: AnimatedBuilder(
-        animation: _shimmerController,
-        builder: (context, child) {
-          // --- FIX: Corrected variable declaration from `final-gradient` to `final gradient` ---
-          final gradient = LinearGradient(
-            colors: const [Color(0xFF1E1E1E), Color(0xFF2C2C2C), Color(0xFF1E1E1E)],
-            stops: const [0.4, 0.5, 0.6],
-            begin: const Alignment(-1.0, -0.3),
-            end: const Alignment(1.0, 0.3),
-            transform: _SlidingGradientTransform(slidePercent: _shimmerController.value),
-          );
-          return ShaderMask(
-            blendMode: BlendMode.srcATop,
-            // --- FIX: Correctly reference the `gradient` variable ---
-            shaderCallback: (bounds) => gradient.createShader(bounds),
-            child: child,
-          );
-        },
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 8),
-            _buildSkeletonBox(height: 24, width: 200, isCentered: true),
-            const SizedBox(height: 20),
-            _buildSkeletonBox(height: 120, width: 340, isCentered: true),
-            const SizedBox(height: 24),
-            _buildSkeletonBox(height: 16, width: double.infinity),
-            const SizedBox(height: 8),
-            _buildSkeletonBox(height: 16, width: double.infinity),
-            const SizedBox(height: 8),
-            _buildSkeletonBox(height: 16, width: double.infinity),
-            const SizedBox(height: 28),
-            _buildSkeletonBox(height: 22, width: 220),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(child: _buildSkeletonBox(height: 80)),
-                const SizedBox(width: 16),
-                Expanded(child: _buildSkeletonBox(height: 80)),
-              ],
-            ),
-            const SizedBox(height: 32),
-          ],
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 8),
+          SkeletonLoader(
+            isLoading: true,
+            child: SkeletonShapes.text(width: 200, height: 24),
+          ),
+          const SizedBox(height: 20),
+          SkeletonLoader(
+            isLoading: true,
+            child: SkeletonShapes.card(height: 120, padding: const EdgeInsets.all(20)),
+          ),
+          const SizedBox(height: 24),
+          SkeletonLoader(
+            isLoading: true,
+            child: SkeletonShapes.text(width: double.infinity, height: 16),
+          ),
+          const SizedBox(height: 8),
+          SkeletonLoader(
+            isLoading: true,
+            child: SkeletonShapes.text(width: double.infinity, height: 16),
+          ),
+          const SizedBox(height: 8),
+          SkeletonLoader(
+            isLoading: true,
+            child: SkeletonShapes.text(width: double.infinity, height: 16),
+          ),
+          const SizedBox(height: 28),
+          SkeletonLoader(
+            isLoading: true,
+            child: SkeletonShapes.text(width: 220, height: 22),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: SkeletonLoader(
+                  isLoading: true,
+                  child: SkeletonShapes.card(height: 80),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: SkeletonLoader(
+                  isLoading: true,
+                  child: SkeletonShapes.card(height: 80),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 32),
+        ],
       ),
     );
   }
 
-  Widget _buildSkeletonBox({required double height, double? width, bool isCentered = false}) {
-    Widget box = Container(
-      height: height,
-      width: width,
-      decoration: BoxDecoration(
-        color: Colors.white, // This will be masked by the shader
-        borderRadius: BorderRadius.circular(8),
-      ),
-    );
-    return isCentered ? Center(child: box) : box;
-  }
+
 
   Widget _buildStatRow(String title, String value) {
     return Row(
@@ -459,15 +443,3 @@ class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStat
   }
 }
 
-class _SlidingGradientTransform extends GradientTransform {
-  const _SlidingGradientTransform({
-    required this.slidePercent,
-  });
-
-  final double slidePercent;
-
-  @override
-  Matrix4? transform(Rect bounds, {TextDirection? textDirection}) {
-    return Matrix4.translationValues(bounds.width * slidePercent, 0.0, 0.0);
-  }
-}

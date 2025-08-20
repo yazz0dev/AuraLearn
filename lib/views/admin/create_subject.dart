@@ -19,7 +19,7 @@ class _CreateSubjectPageState extends State<CreateSubjectPage> {
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _durationController = TextEditingController();
 
-  bool _isActive = true;
+  final bool _isActive = false;
   bool _isLoading = false;
   List<Map<String, dynamic>> _kpUsers = [];
   String? _selectedKpId;
@@ -137,13 +137,7 @@ class _CreateSubjectPageState extends State<CreateSubjectPage> {
       appBarTitle: 'Create Subject',
       bottomNavIndex: _currentIndex,
       onBottomNavTap: _onNavigate,
-      appBarActions: [
-        IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => context.go('/admin/subjects'),
-          tooltip: 'Close',
-        ),
-      ],
+      showCloseButton: true,
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         child: Form(
@@ -287,31 +281,6 @@ class _CreateSubjectPageState extends State<CreateSubjectPage> {
                       .toList(),
                   onChanged: (v) => setState(() => _selectedKpId = v),
                 ),
-              ),
-
-              const SizedBox(height: 18),
-
-              // Active Status
-              Row(
-                children: [
-                  const Text(
-                    'Active Status',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const Spacer(),
-                  Switch(
-                    value: _isActive,
-                    onChanged: (value) => setState(() => _isActive = value),
-                    activeThumbColor: Colors.green,
-                  ),
-                  Text(
-                    _isActive ? 'Active' : 'Inactive',
-                    style: const TextStyle(color: Colors.white70),
-                  ),
-                ],
               ),
 
               const SizedBox(height: 48),

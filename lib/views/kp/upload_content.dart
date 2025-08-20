@@ -46,6 +46,11 @@ class _UploadContentPageState extends State<UploadContentPage> {
   int _currentTopicIndex = 0;
   int _totalTopics = 0;
 
+  // PDF page selection
+  int? _startPage;
+  int? _endPage;
+  int? _totalPages;
+
   @override
   void initState() {
     super.initState();
@@ -63,7 +68,22 @@ class _UploadContentPageState extends State<UploadContentPage> {
           ? file.bytes!
           : await File(file.path!).readAsBytes();
       final PdfDocument document = PdfDocument(inputBytes: pdfBytes);
-      final String text = PdfTextExtractor(document).extractText();
+
+      String text;
+      if (_startPage != null && _endPage != null) {
+        // Extract text from specific page range
+        text = '';
+        for (int pageIndex = _startPage! - 1; pageIndex < _endPage!; pageIndex++) {
+          if (pageIndex < document.pages.count) {
+            text += PdfTextExtractor(document).extractText(startPageIndex: pageIndex);
+            text += '\n\n';
+          }
+        }
+      } else {
+        // Extract text from all pages
+        text = PdfTextExtractor(document).extractText();
+      }
+
       document.dispose();
       return text;
     } catch (e) {
@@ -76,6 +96,136 @@ class _UploadContentPageState extends State<UploadContentPage> {
       );
       return "";
     }
+  }
+
+  /// Helper method to get PDF page count
+  Future<int> _getPdfPageCount(PlatformFile file) async {
+    try {
+      final pdfBytes = kIsWeb
+          ? file.bytes!
+          : await File(file.path!).readAsBytes();
+      final PdfDocument document = PdfDocument(inputBytes: pdfBytes);
+      final pageCount = document.pages.count;
+      document.dispose();
+      return pageCount;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  /// Show dialog for page selection when PDF has more than 50 pages
+  Future<bool> _showPageSelectionDialog(String fileName, int totalPages) async {
+    if (!mounted) return false;
+
+    _startPage = null;
+    _endPage = null;
+    _totalPages = totalPages;
+
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.grey[900],
+          title: const Text(
+            'PDF Page Selection',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '$fileName has $_totalPages pages, which exceeds the 50-page limit.',
+                style: const TextStyle(color: Colors.white70),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(
+                        labelText: 'Start Page',
+                        labelStyle: TextStyle(color: Colors.white70),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.white30),
+                        ),
+                        focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.blue),
+                        ),
+                      ),
+                      keyboardType: TextInputType.number,
+                      onChanged: (value) {
+                        _startPage = int.tryParse(value);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextField(
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(
+                        labelText: 'End Page',
+                        labelStyle: TextStyle(color: Colors.white70),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.white30),
+                        ),
+                        focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.blue),
+                        ),
+                      ),
+                      keyboardType: TextInputType.number,
+                      onChanged: (value) {
+                        _endPage = int.tryParse(value);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Max 50 pages allowed',
+                style: TextStyle(color: Colors.orange, fontSize: 12),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel', style: TextStyle(color: Colors.red)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (_startPage != null && _endPage != null) {
+                  final pageRange = _endPage! - _startPage! + 1;
+                  if (_startPage! >= 1 &&
+                      _endPage! <= totalPages &&
+                      _startPage! <= _endPage! &&
+                      pageRange <= 50) {
+                    Navigator.of(context).pop(true);
+                  } else {
+                    Toast.show(
+                      context,
+                      'Invalid page range. Please ensure start ≤ end and range ≤ 50 pages.',
+                      type: ToastType.error,
+                    );
+                  }
+                } else {
+                  Toast.show(
+                    context,
+                    'Please enter both start and end page numbers.',
+                    type: ToastType.error,
+                  );
+                }
+              },
+              child: const Text('Continue'),
+            ),
+          ],
+        );
+      },
+    );
+
+    return result ?? false;
   }
 
   Future<void> _loadSubjectData() async {
@@ -99,7 +249,12 @@ class _UploadContentPageState extends State<UploadContentPage> {
       } else {
         if (mounted) {
           Toast.show(context, 'Subject not found', type: ToastType.error);
-          context.pop();
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            // If can't pop, navigate to a safe route like dashboard
+            context.go('/kp/dashboard');
+          }
         }
       }
     } catch (e) {
@@ -135,8 +290,35 @@ class _UploadContentPageState extends State<UploadContentPage> {
     );
 
     if (result != null) {
+      final file = result.files.first;
+
+      // Check file size (1MB limit)
+      if (file.size > 1024 * 1024) {
+        if (mounted) {
+          Toast.show(
+            context,
+            'File size must be less than 1MB. Current size: ${(file.size / 1024 / 1024).toStringAsFixed(1)}MB',
+            type: ToastType.error,
+          );
+        }
+        return;
+      }
+
+      // Check page count
+      final pageCount = await _getPdfPageCount(file);
+      if (pageCount > 50) {
+        if (mounted) {
+          final shouldContinue = await _showPageSelectionDialog(file.name, pageCount);
+          if (!shouldContinue) return;
+        }
+      }
+
       setState(() {
-        _syllabusFile = result.files.first;
+        _syllabusFile = file;
+        // Reset page selection for next file
+        _startPage = null;
+        _endPage = null;
+        _totalPages = null;
       });
       if (mounted) {
         Toast.show(context, 'Syllabus file selected!', type: ToastType.info);
@@ -266,18 +448,48 @@ class _UploadContentPageState extends State<UploadContentPage> {
 
     if (result != null) {
       int availableSlots = 10 - _materialFiles.length;
-      List<PlatformFile> pickedFiles = result.files
-          .take(availableSlots)
-          .toList();
-      setState(() {
-        _materialFiles.addAll(pickedFiles);
-      });
-      if (mounted) {
-        Toast.show(
-          context,
-          'Added ${pickedFiles.length} file(s)',
-          type: ToastType.info,
-        );
+      List<PlatformFile> validFiles = [];
+
+      for (final file in result.files.take(availableSlots)) {
+        // Check file size (1MB limit)
+        if (file.size > 1024 * 1024) {
+          if (mounted) {
+            Toast.show(
+              context,
+              '${file.name}: File size must be less than 1MB. Current size: ${(file.size / 1024 / 1024).toStringAsFixed(1)}MB',
+              type: ToastType.error,
+            );
+          }
+          continue;
+        }
+
+        // Check page count
+        final pageCount = await _getPdfPageCount(file);
+        if (pageCount > 50) {
+          if (mounted) {
+            final shouldContinue = await _showPageSelectionDialog(file.name, pageCount);
+            if (!shouldContinue) continue;
+          }
+        }
+
+        validFiles.add(file);
+      }
+
+      if (validFiles.isNotEmpty) {
+        setState(() {
+          _materialFiles.addAll(validFiles);
+          // Reset page selection for next file
+          _startPage = null;
+          _endPage = null;
+          _totalPages = null;
+        });
+        if (mounted) {
+          Toast.show(
+            context,
+            'Added ${validFiles.length} file(s)',
+            type: ToastType.info,
+          );
+        }
       }
     }
   }
@@ -436,6 +648,7 @@ class _UploadContentPageState extends State<UploadContentPage> {
       appBarTitle: 'AI Content Generation',
       bottomNavIndex: 0,
       showBottomBar: false,
+      showCloseButton: true,
       child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
@@ -769,7 +982,14 @@ class _UploadContentPageState extends State<UploadContentPage> {
           ),
           const SizedBox(height: 16),
           TextButton(
-            onPressed: () => context.pop(),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                // If can't pop, navigate to a safe route like dashboard
+                context.go('/kp/dashboard');
+              }
+            },
             child: const Text('Back to Dashboard'),
           ),
           const SizedBox(height: 80),

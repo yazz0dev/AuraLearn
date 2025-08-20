@@ -1,4 +1,5 @@
 import 'package:auralearn/router.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -14,6 +15,13 @@ void main() async {
   }
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Disable App Check to avoid provider errors in development
+  await FirebaseAppCheck.instance.setTokenAutoRefreshEnabled(false);
+
+  // Optional: Add graphics optimization for Android
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 512 * 1024 * 1024; // 512MB
+
   runApp(const AuraLearnApp());
 }
 

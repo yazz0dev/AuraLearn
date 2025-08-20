@@ -1,4 +1,5 @@
 import 'package:auralearn/components/authenticated_app_layout.dart';
+import 'package:auralearn/components/skeleton_loader.dart';
 import 'package:auralearn/utils/page_transitions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -17,6 +18,7 @@ class _SubjectListScreenState extends State<SubjectListScreen> with TickerProvid
   int _currentIndex = 2; // Subject list is at index 2
   late Stream<QuerySnapshot> _subjectsStream;
   late final AnimationController _pageController;
+  String? _expandedSubjectId;
 
   @override
   void initState() {
@@ -136,16 +138,17 @@ class _SubjectListScreenState extends State<SubjectListScreen> with TickerProvid
   Widget _buildSubjectCard(String subjectId, Map<String, dynamic> data) {
     final String name = data['name'] ?? 'Unnamed Subject';
     final String description = data['description'] ?? 'No description';
-    final String code = data['code'] ?? '';
-    final int credits = data['credits'] ?? 0;
-    final bool isActive = data['isActive'] ?? true;
+    final bool isActive = data['isActive'] ?? false;
     final Timestamp? createdAt = data['createdAt'];
+    final bool isExpanded = _expandedSubjectId == subjectId;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       child: Card(
         child: InkWell(
-          onTap: () => _showSubjectDetails(subjectId, data),
+          onTap: () => setState(() {
+            _expandedSubjectId = isExpanded ? null : subjectId;
+          }),
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -166,16 +169,6 @@ class _SubjectListScreenState extends State<SubjectListScreen> with TickerProvid
                               color: Colors.white,
                             ),
                           ),
-                          if (code.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              'Code: $code',
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
                         ],
                       ),
                     ),
@@ -235,32 +228,42 @@ class _SubjectListScreenState extends State<SubjectListScreen> with TickerProvid
                 Text(
                   description,
                   style: const TextStyle(color: Colors.white70, fontSize: 14),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  maxLines: isExpanded ? null : 2,
+                  overflow: isExpanded ? null : TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Icon(Icons.school, size: 16, color: Colors.white54),
-                    const SizedBox(width: 4),
-                    Text(
-                      '$credits Credits',
-                      style: const TextStyle(
-                        color: Colors.white54,
-                        fontSize: 12,
-                      ),
+                if (isExpanded) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    const Spacer(),
-                    if (createdAt != null)
+                    child: Column(
+                      children: [
+                        if (createdAt != null)
+                          _buildDetailRow(
+                            'Created',
+                            _formatDate(createdAt.toDate()),
+                          ),
+                      ],
+                    ),
+                  ),
+                ] else ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Spacer(),
                       Text(
-                        'Created: ${_formatDate(createdAt.toDate())}',
+                        'Tap to expand',
                         style: const TextStyle(
                           color: Colors.white54,
                           fontSize: 12,
                         ),
                       ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
@@ -316,38 +319,22 @@ class _SubjectListScreenState extends State<SubjectListScreen> with TickerProvid
       itemBuilder: (context, index) {
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
-          child: Card(
-            child: Padding(
+          child: SkeletonLoader(
+            isLoading: true,
+            child: Container(
               padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    height: 20,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.white24,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
+                  SkeletonShapes.text(width: double.infinity, height: 20),
                   const SizedBox(height: 8),
-                  Container(
-                    height: 14,
-                    width: 100,
-                    decoration: BoxDecoration(
-                      color: Colors.white24,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
+                  SkeletonShapes.text(width: 100, height: 14),
                   const SizedBox(height: 12),
-                  Container(
-                    height: 14,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.white24,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
+                  SkeletonShapes.text(width: double.infinity, height: 14),
                 ],
               ),
             ),
@@ -357,62 +344,7 @@ class _SubjectListScreenState extends State<SubjectListScreen> with TickerProvid
     );
   }
 
-  void _showSubjectDetails(String subjectId, Map<String, dynamic> data) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        title: Text(
-          data['name'] ?? 'Subject Details',
-          style: const TextStyle(color: Colors.white),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildDetailRow('Code', data['code'] ?? 'N/A'),
-              _buildDetailRow('Credits', '${data['credits'] ?? 0}'),
-              _buildDetailRow(
-                'Status',
-                data['isActive'] == true ? 'Active' : 'Inactive',
-              ),
-              _buildDetailRow(
-                'Description',
-                data['description'] ?? 'No description',
-              ),
-              if (data['createdAt'] != null)
-                _buildDetailRow(
-                  'Created',
-                  _formatDate((data['createdAt'] as Timestamp).toDate()),
-                ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close', style: TextStyle(color: Colors.white70)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              context.pushNamed(
-                'admin-edit-subject',
-                pathParameters: {'subjectId': subjectId},
-                extra: data,
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepPurple,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Edit'),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildDetailRow(String label, String value) {
     return Padding(

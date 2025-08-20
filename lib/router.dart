@@ -1,4 +1,5 @@
 import 'package:auralearn/components/loading_widget.dart';
+import 'package:auralearn/services/user_role_cache.dart';
 import 'package:auralearn/views/admin/create_subject.dart';
 import 'package:auralearn/views/admin/dashboard_admin.dart';
 import 'package:auralearn/views/admin/edit_subject.dart';
@@ -14,7 +15,6 @@ import 'package:auralearn/views/platform_aware_landing.dart';
 import 'package:auralearn/views/student/dashboard.dart';
 import 'package:auralearn/views/student/profile.dart';
 import 'package:auralearn/views/student/register.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -27,6 +27,10 @@ class GoRouterNotifier extends ChangeNotifier {
   GoRouterNotifier() {
     FirebaseAuth.instance.authStateChanges().listen((user) {
       _isLoggedIn = user != null;
+      // Invalidate cache when user logs out
+      if (user == null) {
+        UserRoleCache().invalidateCache();
+      }
       notifyListeners();
     });
   }
@@ -201,15 +205,10 @@ final GoRouter router = GoRouter(
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
         try {
-          final userDoc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .get();
-          
-          if (userDoc.exists) {
-            final data = userDoc.data() as Map<String, dynamic>;
-            final role = data['role'];
-            
+          // Use cached role to avoid repeated Firestore calls
+          final role = await UserRoleCache().getUserRole();
+
+          if (role != null) {
             switch (role) {
               case 'Admin':
                 return '/admin/dashboard';

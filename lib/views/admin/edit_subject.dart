@@ -23,9 +23,7 @@ class _EditSubjectPageState extends State<EditSubjectPage> {
   int _currentIndex = 2; // Accessed from subjects screen
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
-  late final TextEditingController _codeController;
   late final TextEditingController _descriptionController;
-  late final TextEditingController _creditsController;
 
   late bool _isActive;
   bool _isLoading = false;
@@ -42,9 +40,7 @@ class _EditSubjectPageState extends State<EditSubjectPage> {
 
   void _initializeControllers() {
     _nameController = TextEditingController(text: widget.subjectData['name'] ?? '');
-    _codeController = TextEditingController(text: widget.subjectData['code'] ?? '');
     _descriptionController = TextEditingController(text: widget.subjectData['description'] ?? '');
-    _creditsController = TextEditingController(text: '${widget.subjectData['credits'] ?? 0}');
     _isActive = widget.subjectData['isActive'] ?? true;
     _selectedKpId = widget.subjectData['assignedKpId'];
   }
@@ -52,9 +48,7 @@ class _EditSubjectPageState extends State<EditSubjectPage> {
   @override
   void dispose() {
     _nameController.dispose();
-    _codeController.dispose();
     _descriptionController.dispose();
-    _creditsController.dispose();
     super.dispose();
   }
 
@@ -120,9 +114,7 @@ class _EditSubjectPageState extends State<EditSubjectPage> {
     try {
       final subjectData = {
         'name': _nameController.text.trim(),
-        'code': _codeController.text.trim(),
         'description': _descriptionController.text.trim(),
-        'credits': int.tryParse(_creditsController.text.trim()) ?? 0,
         'isActive': _isActive,
         'assignedKpId': _selectedKpId,
         'updatedAt': FieldValue.serverTimestamp(),
@@ -231,7 +223,7 @@ class _EditSubjectPageState extends State<EditSubjectPage> {
 
     return AuthenticatedAppLayout(
       role: UserRole.admin,
-      appBarTitle: 'Edit Subject',
+      appBarTitle: 'Edit: ${widget.subjectData['name'] ?? 'Subject'}',
       bottomNavIndex: _currentIndex,
       onBottomNavTap: _onNavigate,
       appBarActions: [
@@ -267,80 +259,6 @@ class _EditSubjectPageState extends State<EditSubjectPage> {
                     : null,
                 decoration: InputDecoration(
                   hintText: 'Enter subject name',
-                  hintStyle: const TextStyle(color: Colors.white54),
-                  filled: true,
-                  fillColor: cardBg,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 18),
-
-              // Subject Code
-              const Text(
-                'Subject Code',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _codeController,
-                style: const TextStyle(color: Colors.white),
-                validator: (v) => (v == null || v.trim().isEmpty)
-                    ? 'Please enter subject code'
-                    : null,
-                decoration: InputDecoration(
-                  hintText: 'e.g., CS101, MATH201',
-                  hintStyle: const TextStyle(color: Colors.white54),
-                  filled: true,
-                  fillColor: cardBg,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 18),
-
-              // Credits
-              const Text(
-                'Credits',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _creditsController,
-                style: const TextStyle(color: Colors.white),
-                keyboardType: TextInputType.number,
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) {
-                    return 'Please enter credits';
-                  }
-                  final credits = int.tryParse(v.trim());
-                  if (credits == null || credits < 1) {
-                    return 'Please enter valid credits (1 or more)';
-                  }
-                  return null;
-                },
-                decoration: InputDecoration(
-                  hintText: 'Enter credit hours',
                   hintStyle: const TextStyle(color: Colors.white54),
                   filled: true,
                   fillColor: cardBg,

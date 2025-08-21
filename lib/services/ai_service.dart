@@ -11,11 +11,14 @@ class AIService {
 
   // Initialize the Google AI model using the Firebase SDK
   // This securely calls the Gemini API through a Firebase proxy.
+
+  // Set the thinking configuration to disable thinking for faster responses
   final _model = FirebaseAI.googleAI().generativeModel(
     // FIX: Ensured the correct and latest model name is used.
     model: 'gemini-2.5-flash',
     generationConfig: GenerationConfig(
       temperature: 0.4, // Controls randomness for more consistent output
+      thinkingConfig: ThinkingConfig(thinkingBudget: 0),
     ),
   );
 
@@ -134,13 +137,47 @@ class AIService {
     Uint8List pdfBytes,
     String mimeType,
   ) async {
-    debugPrint("📄 PDF size: ${pdfBytes.length} bytes");
+    debugPrint("📄 Starting PDF analysis:");
+    debugPrint("📄 PDF size: ${(pdfBytes.length / 1024 / 1024).toStringAsFixed(2)} MB");
+    debugPrint("📄 MIME type: $mimeType");
+    debugPrint("📄 Prompt type: Syllabus analysis");
 
-    return _generateContentWithRetry(
-      () => _model.generateContent([
-        Content.multi([TextPart(prompt), InlineDataPart(mimeType, pdfBytes)]),
-      ]),
-      prompt,
-    );
+    // Validate PDF size (Firebase AI has limits)
+    const maxSizeBytes = 20 * 1024 * 1024; // 20MB limit for Firebase AI
+    if (pdfBytes.length > maxSizeBytes) {
+      debugPrint("❌ PDF too large for AI processing: ${pdfBytes.length} bytes");
+      return 'PDF file is too large for AI processing. Please use a smaller file (under 20MB).';
+    }
+
+    try {
+      final result = await _generateContentWithRetry(
+        () => _model.generateContent([
+          Content.multi([
+            TextPart(prompt), 
+            InlineDataPart(mimeType, pdfBytes)
+          ]),
+        ]),
+        prompt,
+        maxRetries: 2, // Fewer retries for PDF processing as it's more resource intensive
+      );
+
+      debugPrint("📄 PDF analysis completed successfully");
+      return result;
+    } catch (e) {
+      debugPrint("❌ PDF processing failed: $e");
+      
+      // Handle PDF-specific errors
+      final errorString = e.toString().toLowerCase();
+      if (errorString.contains('invalid') && errorString.contains('pdf')) {
+        return 'The uploaded file appears to be corrupted or is not a valid PDF. Please try uploading a different PDF file.';
+      } else if (errorString.contains('size') || errorString.contains('large')) {
+        return 'PDF file is too large for processing. Please compress the PDF or use a smaller file.';
+      } else if (errorString.contains('format') || errorString.contains('mime')) {
+        return 'Unsupported file format. Please ensure you are uploading a valid PDF file.';
+      }
+      
+      // Fall back to generic error handling
+      rethrow;
+    }
   }
 }

@@ -158,8 +158,8 @@ class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStat
                       children: [
                         Expanded(
                           child: _buildManagementCard(
-                            color: Colors.blue.withAlpha(25),
-                            iconColor: Colors.blue.withAlpha(76),
+                            color: const Color.fromARGB(255, 176, 196, 97).withAlpha(25),
+                            iconColor: const Color.fromARGB(255, 163, 187, 206).withAlpha(76),
                             title: 'Manage Subjects',
                             subtitle: 'View & Edit',
                             onTap: () {
@@ -275,47 +275,30 @@ class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStat
     return InkWell(
       onTap: onTap,
       child: Container(
-       height: 80,
-       padding: const EdgeInsets.all(12),
-       decoration: BoxDecoration(
-         color: color,
-         borderRadius: BorderRadius.circular(16),
-         border: Border.all(color: Colors.white12),
-       ),
-       child: Row(
-         children: [
-           Container(
-             width: 56,
-             height: 56,
-             decoration: BoxDecoration(color: iconColor, borderRadius: BorderRadius.circular(12)),
-           ),
-           const SizedBox(width: 12),
-           Expanded(
-             child: FittedBox(
-               fit: BoxFit.scaleDown,
-               alignment: Alignment.centerLeft,
-               child: Column(
-                 crossAxisAlignment: CrossAxisAlignment.start,
-                 mainAxisSize: MainAxisSize.min,
-                 children: [
-                   Text(
-                     title,
-                     style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
-                   ),
-                   const SizedBox(height: 4),
-                   Text(
-                     subtitle,
-                     style: const TextStyle(fontSize: 12, color: Colors.white70),
-                   ),
-                 ],
-               ),
-             ),
-           ),
-         ],
-       ),
-     )
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white.withAlpha(5), // Very subtle background
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withAlpha(10)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: const TextStyle(fontSize: 12, color: Colors.white70),
+            ),
+          ],
+        ),
+      ),
     );
-   }
+  }
 
   Widget _buildEmptyStateCard(String message) {
     return Container(

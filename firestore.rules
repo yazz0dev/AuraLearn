@@ -27,9 +27,13 @@ service cloud.firestore {
       // The .count() function requires 'list' permission.
       allow get, list: if request.auth != null;
 
-      // A user can only create or update their own document.
-      // Admins can also create/update user documents.
-      allow create, update: if request.auth.uid == userId || isAdmin();
+      // A user can only create their own document, and admins can create any user.
+      // The 'role' is typically set to 'Student' on creation.
+      allow create: if request.auth.uid == userId || isAdmin();
+
+      // An admin can update any field on a user document.
+      // A user can update their own document, but they cannot change their own 'role'.
+      allow update: if (request.auth.uid == userId && request.resource.data.role == resource.data.role) || isAdmin();
       
       // Only admins can delete users
       allow delete: if isAdmin();

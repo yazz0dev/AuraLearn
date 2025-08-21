@@ -3,7 +3,7 @@ import 'package:auralearn/services/user_role_cache.dart';
 import 'package:auralearn/views/admin/create_subject.dart';
 import 'package:auralearn/views/admin/dashboard_admin.dart';
 import 'package:auralearn/views/admin/edit_subject.dart';
-import 'package:auralearn/views/admin/review_content.dart';
+import 'package:auralearn/views/admin/review_subject.dart';
 import 'package:auralearn/views/admin/subject_list.dart';
 import 'package:auralearn/views/admin/user_management.dart';
 import 'package:auralearn/views/forgot_password.dart';
@@ -153,6 +153,11 @@ final GoRouter router = GoRouter(
     GoRoute(
       path: '/admin/review-content',
       name: 'admin-review-content',
+      builder: (context, state) => const ReviewContentPage(),
+    ),
+    GoRoute(
+      path: '/admin/review-subject',
+      name: 'admin-review-subject',
       builder: (context, state) => const ReviewContentPage(),
     ),
     GoRoute(

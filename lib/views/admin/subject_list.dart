@@ -246,6 +246,24 @@ class _SubjectListScreenState extends State<SubjectListScreen> with TickerProvid
                             'Created',
                             _formatDate(createdAt.toDate()),
                           ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () => _navigateToReview(subjectId),
+                                icon: const Icon(Icons.rate_review, size: 16),
+                                label: const Text('Review Content'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.purple.withValues(alpha: 0.2),
+                                  foregroundColor: Colors.purple,
+                                  side: BorderSide(color: Colors.purple),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
@@ -372,5 +390,12 @@ class _SubjectListScreenState extends State<SubjectListScreen> with TickerProvid
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
+  }
+
+  void _navigateToReview(String subjectId) {
+    debugPrint('Navigating to review with subjectId: $subjectId');
+    final route = '/admin/review-subject?subjectId=$subjectId';
+    debugPrint('Full route: $route');
+    GoRouter.of(context).go(route);
   }
 }

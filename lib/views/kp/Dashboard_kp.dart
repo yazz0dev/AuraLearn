@@ -39,7 +39,6 @@ class _DashboardKPState extends State<DashboardKP>
       _assignedSubjectsStream = FirebaseFirestore.instance
           .collection('subjects')
           .where('assignedKpId', isEqualTo: _currentUserId)
-          .where('isActive', isEqualTo: true)
           .snapshots();
     }
   }

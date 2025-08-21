@@ -291,28 +291,31 @@ class _ProfilePageState extends State<ProfilePage> {
       await _auth.signOut();
       debugPrint('Firebase sign out successful');
 
-      if (mounted) {
-        Toast.show(context, 'Logged out successfully', type: ToastType.success);
-      }
+      // Guard context usage with mounted check
+      if (!mounted) return;
+
+      Toast.show(context, 'Logged out successfully', type: ToastType.success);
       debugPrint('Navigating to landing screen...');
 
       // Wait a brief moment for the auth state to update, then navigate
       await Future.delayed(const Duration(milliseconds: 100));
 
-      if (mounted) {
-        // Use go instead of goNamed to ensure we hit the root route
-        context.go('/');
-      }
+      // Guard context usage again after async gap
+      if (!mounted) return;
+
+      // Use go instead of goNamed to ensure we hit the root route
+      context.go('/');
       debugPrint('Navigation to "/" completed');
     } catch (e) {
       debugPrint('Logout error: $e');
-      if (mounted) {
-        Toast.show(
-          context,
-          'Failed to log out. Please try again.',
-          type: ToastType.error,
-        );
-      }
+      // Guard context usage in catch block
+      if (!mounted) return;
+
+      Toast.show(
+        context,
+        'Failed to log out. Please try again.',
+        type: ToastType.error,
+      );
     }
   }
 

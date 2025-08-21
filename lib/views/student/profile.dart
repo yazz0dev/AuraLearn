@@ -292,7 +292,7 @@ class _ProfilePageState extends State<ProfilePage> {
       debugPrint('Firebase sign out successful');
 
       // Guard context usage with mounted check
-      if (!mounted) return;
+      if (!context.mounted) return;
 
       Toast.show(context, 'Logged out successfully', type: ToastType.success);
       debugPrint('Navigating to landing screen...');
@@ -301,7 +301,7 @@ class _ProfilePageState extends State<ProfilePage> {
       await Future.delayed(const Duration(milliseconds: 100));
 
       // Guard context usage again after async gap
-      if (!mounted) return;
+      if (!context.mounted) return;
 
       // Use go instead of goNamed to ensure we hit the root route
       context.go('/');
@@ -309,7 +309,7 @@ class _ProfilePageState extends State<ProfilePage> {
     } catch (e) {
       debugPrint('Logout error: $e');
       // Guard context usage in catch block
-      if (!mounted) return;
+      if (!context.mounted) return;
 
       Toast.show(
         context,

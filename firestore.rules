@@ -99,60 +99,6 @@ service cloud.firestore {
       }
     }
     
-    // Rules for content collections (future use)
-    match /content/{contentId} {
-      // Students and KPs can read content
-      allow read: if request.auth != null && (isStudent() || isKP() || isAdmin());
-      
-      // Only KPs and Admins can create/update content
-      allow create, update: if isKP() || isAdmin();
-      
-      // Only admins can delete content
-      allow delete: if isAdmin();
-    }
-    
-    // Rules for assignments/submissions (future use)
-    match /assignments/{assignmentId} {
-      // Students can read assignments assigned to them
-      // KPs can read assignments for their subjects
-      // Admins can read all assignments
-      allow read: if request.auth != null;
-      
-      // Only KPs and Admins can create assignments
-      allow create, update: if isKP() || isAdmin();
-      
-      // Only admins can delete assignments
-      allow delete: if isAdmin();
-    }
-    
-    // Rules for uploads collection
-    match /uploads/{uploadId} {
-      // KPs can read their own uploads
-      // Admins can read all uploads
-      allow read: if request.auth != null && (
-        (isKP() && resource.data.uploadedBy == request.auth.uid) || 
-        isAdmin()
-      );
-      
-      // Allow listing uploads for admins (for review queue)
-      allow list: if isAdmin();
-      
-      // KPs can create uploads
-      // Admins can create uploads
-      allow create: if request.auth != null && (isKP() || isAdmin()) &&
-                   request.resource.data.uploadedBy == request.auth.uid;
-      
-      // KPs can update their own uploads
-      // Admins can update any upload (for approval/rejection)
-      allow update: if request.auth != null && (
-        (isKP() && resource.data.uploadedBy == request.auth.uid) ||
-        isAdmin()
-      );
-      
-      // Only admins can delete uploads
-      allow delete: if isAdmin();
-    }
-    
     // Rules for content_chunks collection (AI-generated content)
     match /content_chunks/{chunkId} {
       // Students and Admins can read all content chunks

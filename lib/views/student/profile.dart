@@ -4,10 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:time_range_picker/time_range_picker.dart' as time_range;
+
 import '../../components/authenticated_app_layout.dart';
 import '../../components/toast.dart';
 import '../../components/bottom_bar.dart';
+import '../../components/time_range_picker.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -32,11 +33,20 @@ class _ProfilePageState extends State<ProfilePage> {
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
 
+  // Original values for change detection
+  late Map<String, bool> _originalSelectedDays;
+  TimeOfDay? _originalStartTime;
+  TimeOfDay? _originalEndTime;
+
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
+    // Initialize original values
+    _originalSelectedDays = Map.from(_selectedDays);
+    _originalStartTime = null;
+    _originalEndTime = null;
     _loadUserData();
   }
 
@@ -84,6 +94,11 @@ class _ProfilePageState extends State<ProfilePage> {
       _name = 'Error loading name';
       _email = 'Error loading email';
     } finally {
+      // Store original values for change detection
+      _originalSelectedDays = Map.from(_selectedDays);
+      _originalStartTime = _startTime;
+      _originalEndTime = _endTime;
+
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -110,6 +125,32 @@ class _ProfilePageState extends State<ProfilePage> {
     return Theme.of(context).cardColor;
   }
 
+  // Check if there are changes compared to original values
+  bool _hasChanges() {
+    // Check if selected days have changed
+    if (_selectedDays.length != _originalSelectedDays.length) {
+      return true;
+    }
+
+    for (String day in _selectedDays.keys) {
+      if (_selectedDays[day] != _originalSelectedDays[day]) {
+        return true;
+      }
+    }
+
+    // Check if start time has changed
+    if (_startTime != _originalStartTime) {
+      return true;
+    }
+
+    // Check if end time has changed
+    if (_endTime != _originalEndTime) {
+      return true;
+    }
+
+    return false;
+  }
+
 
 
   Future<void> _saveChanges() async {
@@ -133,6 +174,11 @@ class _ProfilePageState extends State<ProfilePage> {
         });
 
         if (mounted) {
+          // Update original values after successful save
+          _originalSelectedDays = Map.from(_selectedDays);
+          _originalStartTime = _startTime;
+          _originalEndTime = _endTime;
+
           Toast.show(context, 'Changes saved successfully!', type: ToastType.success);
         }
       }
@@ -381,59 +427,10 @@ class _ProfilePageState extends State<ProfilePage> {
               borderRadius: BorderRadius.circular(12),
               boxShadow: isDark ? null : [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0,4))],
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Study Availability', style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color)),
-                const SizedBox(height: 10),
-
-                // Days selector (matching register.dart)
-                Wrap(
-                  spacing: 8.0,
-                  runSpacing: 8.0,
-                  children: _selectedDays.keys.map((day) {
-                    final selected = _selectedDays[day]!;
-                    return FilterChip(
-                      label: Text(day),
-                      selected: selected,
-                      onSelected: (val) {
-                        setState(() {
-                          _selectedDays[day] = val;
-                        });
-                      },
-                    );
-                  }).toList(),
-                ),
-
-                const SizedBox(height: 16),
-
-                // Time range picker (matching register.dart design)
-                _buildTimeRangePicker(),
-
-                const SizedBox(height: 14),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryColor(context),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    onPressed: _saveChanges,
-                    child: Text('Save Changes', style: TextStyle(color: Colors.white)),
-                  ),
-                ),
-              ],
-            ),
+            child: _buildAvailabilitySection(),
           ),
 
           const SizedBox(height: 20),
-          // Account & Security
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text('Account & Security', style: TextStyle(fontWeight: FontWeight.w600)),
-          ),
-          const SizedBox(height: 10),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(12),
@@ -444,21 +441,6 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             child: Column(
               children: [
-                SizedBox(
-                  width: double.infinity,
-                  child: TextButton(
-                    style: TextButton.styleFrom(
-                      backgroundColor: isDark ? Colors.grey[900] : Colors.grey[100],
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    onPressed: () {
-                      // navigate to change password
-                    },
-                    child: Text('Change Password', style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color)),
-                  ),
-                ),
-                const SizedBox(height: 8),
                 GestureDetector(
                   onTap: () => _handleLogout(context),
                   child: Padding(
@@ -476,74 +458,66 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildTimeRangePicker() {
-    final label = _startTime == null || _endTime == null
-        ? 'Select Time Range'
-        : '${_startTime!.format(context)} - ${_endTime!.format(context)}';
-
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.white.withAlpha(26),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () async {
-            final result = await time_range.showTimeRangePicker(
-              context: context,
-              start: _startTime,
-              end: _endTime,
-              use24HourFormat: false,
-              strokeWidth: 2,
-              ticks: 12,
-              ticksColor: Colors.white.withAlpha(102),
-              ticksLength: 15,
-              handlerColor: const Color(0xFF3B82F6),
-              handlerRadius: 8,
-              strokeColor: Colors.white.withAlpha(51),
-              backgroundColor: const Color(0xFF1E1E1E),
-              activeTimeTextStyle: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
-              timeTextStyle: TextStyle(color: Colors.white.withAlpha(179), fontSize: 16),
-            );
-            if (result != null) {
-              setState(() {
-                _startTime = result.startTime;
-                _endTime = result.endTime;
-              });
-            }
-          },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.schedule,
-                  color: Colors.white.withAlpha(179),
-                  size: 20,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      color: _startTime == null ? Colors.white.withAlpha(179) : Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                Icon(
-                  Icons.arrow_drop_down,
-                  color: Colors.white.withAlpha(179),
-                ),
-              ],
+  Widget _buildAvailabilitySection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Set Your Weekly Availability', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)),
+        const SizedBox(height: 16),
+        _buildDaySelector(),
+        const SizedBox(height: 16),
+        _buildTimeRangePicker(),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _hasChanges() ? primaryColor(context) : Colors.grey[400],
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+            onPressed: _hasChanges() ? _saveChanges : null,
+            child: Text(
+              'Save Changes',
+              style: TextStyle(
+                color: _hasChanges() ? Colors.white : Colors.white.withValues(alpha: 0.7),
+              ),
             ),
           ),
         ),
-      ),
+      ],
+    );
+  }
+
+  Widget _buildDaySelector() {
+    return Wrap(
+      spacing: 8.0,
+      runSpacing: 8.0,
+      children: _selectedDays.keys.map((day) {
+        final selected = _selectedDays[day]!;
+        return FilterChip(
+          label: Text(day),
+          selected: selected,
+          onSelected: (val) {
+            setState(() {
+              _selectedDays[day] = val;
+            });
+          },
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildTimeRangePicker() {
+    return TimeRangePicker(
+      initialStartTime: _startTime,
+      initialEndTime: _endTime,
+      onTimeChange: (start, end) {
+        setState(() {
+          _startTime = start;
+          _endTime = end;
+        });
+      },
     );
   }
 }

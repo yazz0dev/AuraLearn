@@ -3,9 +3,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:time_range_picker/time_range_picker.dart' as time_range;
+
 import '../../components/app_layout.dart';
 import '../../components/toast.dart';
+import '../../components/time_range_picker.dart';
 import '../../utils/page_transitions.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -294,76 +295,17 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     );
   }
 
-  // --- FIX: Reverted time picker to its custom-styled container ---
   Widget _buildTimeRangePicker() {
-    final label = _startTime == null || _endTime == null
-        ? 'Select Time Range'
-        : '${_startTime!.format(context)} - ${_endTime!.format(context)}';
-
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.white.withAlpha(26),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () async {
-            final result = await time_range.showTimeRangePicker(
-              context: context,
-              start: _startTime,
-              end: _endTime,
-              use24HourFormat: false,
-              strokeWidth: 2,
-              ticks: 12,
-              ticksColor: Colors.white.withAlpha(102),
-              ticksLength: 15,
-              handlerColor: const Color(0xFF3B82F6),
-              handlerRadius: 8,
-              strokeColor: Colors.white.withAlpha(51),
-              backgroundColor: const Color(0xFF1E1E1E),
-              activeTimeTextStyle: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
-              timeTextStyle: TextStyle(color: Colors.white.withAlpha(179), fontSize: 16),
-            );
-            if (result != null) {
-              setState(() {
-                _startTime = result.startTime;
-                _endTime = result.endTime;
-                _debounceUpdateButtonState();
-              });
-            }
-          },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.schedule,
-                  color: Colors.white.withAlpha(179),
-                  size: 20,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      color: _startTime == null ? Colors.white.withAlpha(179) : Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                Icon(
-                  Icons.arrow_drop_down,
-                  color: Colors.white.withAlpha(179),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+    return TimeRangePicker(
+      initialStartTime: _startTime,
+      initialEndTime: _endTime,
+      onTimeChange: (start, end) {
+        setState(() {
+          _startTime = start;
+          _endTime = end;
+          _debounceUpdateButtonState();
+        });
+      },
     );
   }
   

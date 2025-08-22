@@ -40,6 +40,7 @@ node_modules/
 /build/
 
 # Flutter web
+/web
 
 # Flutter iOS
 **/ios/Runner/GeneratedPluginRegistrant.*

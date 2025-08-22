@@ -336,9 +336,9 @@ class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStat
   Widget _buildReviewQueue() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
-          .collection('uploads')
+          .collectionGroup('topics')
           .where('status', isEqualTo: 'pending_review')
-          .limit(3)
+          .limit(10) // Limit to avoid fetching too much data
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -346,78 +346,90 @@ class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStat
         }
 
         if (snapshot.hasError) {
+          debugPrint('Review queue error: \${snapshot.error}');
           return _buildEmptyStateCard('Error loading review queue');
         }
 
-        final uploads = snapshot.data?.docs ?? [];
+        final topics = snapshot.data?.docs ?? [];
 
-        if (uploads.isEmpty) {
+        if (topics.isEmpty) {
+          return _buildEmptyStateCard('No items in review queue');
+        }
+
+        // Group topics by subject
+        final Map<String, Map<String, dynamic>> subjectsToReview = {};
+        for (var topic in topics) {
+          final data = topic.data() as Map<String, dynamic>;
+          final subjectId = topic.reference.parent.parent!.id;
+          final subjectName = data['subject_name'] ?? 'Unknown Subject';
+
+          if (!subjectsToReview.containsKey(subjectId)) {
+            subjectsToReview[subjectId] = {
+              'name': subjectName,
+              'topic_count': 0
+            };
+          }
+          subjectsToReview[subjectId]!['topic_count']++;
+        }
+
+        if (subjectsToReview.isEmpty) {
           return _buildEmptyStateCard('No items in review queue');
         }
 
         return Column(
-          children: uploads.map((upload) {
-            final data = upload.data() as Map<String, dynamic>;
-            final fileName = data['fileName'] ?? 'Unknown file';
-            final fileType = data['fileType'] ?? 'unknown';
-            final subjectId = data['subjectId'] ?? '';
+          children: subjectsToReview.entries.map((entry) {
+            final subjectData = entry.value;
+            final subjectName = subjectData['name'];
 
-            return FutureBuilder<DocumentSnapshot>(
-              future: FirebaseFirestore.instance.collection('subjects').doc(subjectId).get(),
-              builder: (context, subjectSnapshot) {
-                final subjectName = subjectSnapshot.data?.get('name') ?? 'Unknown Subject';
-                
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withAlpha(25),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.orange.withAlpha(76)),
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.withAlpha(25),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.orange.withAlpha(76)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.library_books,
+                    color: Colors.orange,
+                    size: 20,
                   ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        fileType == 'syllabus' ? Icons.description : Icons.library_books,
-                        color: Colors.orange,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              fileName,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 14,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              '$subjectName • ${fileType.toUpperCase()}',
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          subjectName,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 14,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                      TextButton(
-                        onPressed: () => context.go('/admin/review-content'),
-                        child: const Text(
-                          'Review',
-                          style: TextStyle(color: Colors.orange),
+                        Text(
+                          '\$topicCount topic(s) to review',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                );
-              },
+                  TextButton(
+                    onPressed: () => context.go('/admin/review-subject/\$subjectId'),
+                    child: const Text(
+                      'Review',
+                      style: TextStyle(color: Colors.orange),
+                    ),
+                  ),
+                ],
+              ),
             );
           }).toList(),
         );

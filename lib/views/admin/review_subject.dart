@@ -141,7 +141,6 @@ class _ReviewContentPageState extends State<ReviewContentPage> {
           .update({
             'status': 'approved',
             'admin_approved_at': FieldValue.serverTimestamp(),
-            'admin_approved_by': 'current_admin_user', // TODO: Replace with actual user ID
           });
 
       if (!mounted) return;
@@ -177,7 +176,6 @@ class _ReviewContentPageState extends State<ReviewContentPage> {
           .update({
             'status': 'rejected',
             'admin_rejected_at': FieldValue.serverTimestamp(),
-            'admin_rejected_by': 'current_admin_user', // TODO: Replace with actual user ID
           });
 
       // Reset all topics to 'generated' status so KP can review again

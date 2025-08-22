@@ -645,47 +645,47 @@ class _UploadContentPageState extends State<UploadContentPage> {
       final currentSubjectName = _subjectData?['name'] ?? 'Unknown Subject';
 
       final systemPrompt = '''
-You are an expert academic assistant specialized in analyzing syllabus documents. Your task is to:
+      You are an expert academic assistant specialized in analyzing syllabus documents. Your task is to:
 
-ANALYZING SYLLABUS FOR SUBJECT: "$currentSubjectName"
+      ANALYZING SYLLABUS FOR SUBJECT: "$currentSubjectName"
 
-1. This syllabus document is for the subject: "$currentSubjectName"
-2. Extract all learning topics, modules, units, chapters, or lessons from this syllabus
-3. Focus on the content structure and learning objectives for this specific subject
+      1. This syllabus document is for the subject: "$currentSubjectName"
+      2. Extract all learning topics, modules, units, chapters, or lessons from this syllabus
+      3. Focus on the content structure and learning objectives for this specific subject
 
-CRITICAL REQUIREMENTS:
-- MAXIMUM 50 topics can be extracted (prioritize the most important topics if more than 50 exist)
-- Extract topics that are relevant to "$currentSubjectName"
-- If the syllabus content doesn't match "$currentSubjectName", still extract the available topics
+      CRITICAL REQUIREMENTS:
+      - MAXIMUM 50 topics can be extracted (prioritize the most important topics if more than 50 exist)
+      - Extract topics that are relevant to "$currentSubjectName"
+      - If the syllabus content doesn't match "$currentSubjectName", still extract the available topics
 
-ANALYSIS GUIDELINES:
-- Look for section headings like "Topics", "Modules", "Units", "Chapters", "Syllabus Content", "Course Content"
-- Identify numbered or bulleted lists of topics
-- Extract both main topics and subtopics if clearly defined
-- Ignore administrative content (grading, attendance, contact info, etc.)
-- Focus on actual learning content that students will study
-- Extract topics in the logical order they appear in the syllabus
+      ANALYSIS GUIDELINES:
+      - Look for section headings like "Topics", "Modules", "Units", "Chapters", "Syllabus Content", "Course Content"
+      - Identify numbered or bulleted lists of topics
+      - Extract both main topics and subtopics if clearly defined
+      - Ignore administrative content (grading, attendance, contact info, etc.)
+      - Focus on actual learning content that students will study
+      - Extract topics in the logical order they appear in the syllabus
 
-OUTPUT FORMAT:
-Return a valid JSON object with this structure:
-{
-  "subject_name": "$currentSubjectName",
-  "topics": [
-    {"title": "Topic 1 Name"},
-    {"title": "Topic 2 Name"},
-    {"title": "Subtopic under Topic 2"},
-    ...
-  ]
-}
+      OUTPUT FORMAT:
+      Return a valid JSON object with this structure:
+      {
+        "subject_name": "$currentSubjectName",
+        "topics": [
+          {"title": "Topic 1 Name"},
+          {"title": "Topic 2 Name"},
+          {"title": "Subtopic under Topic 2"},
+          ...
+        ]
+      }
 
-IMPORTANT:
-- Maximum 50 topics in the topics array
-- Each topic should be a clear, concise learning objective or content area for "$currentSubjectName"
-- Maintain the logical order as presented in the syllabus
-- Include both main topics and important subtopics (within the 50 topic limit)
-- Ensure all titles are descriptive and educational in nature
-- Return only the JSON object, no additional text or explanations
-''';
+      IMPORTANT:
+      - Maximum 50 topics in the topics array
+      - Each topic should be a clear, concise learning objective or content area for "$currentSubjectName"
+      - Maintain the logical order as presented in the syllabus
+      - Include both main topics and important subtopics (within the 50 topic limit)
+      - Ensure all titles are descriptive and educational in nature
+      - Return only the JSON object, no additional text or explanations
+      ''';
 
       final String response = await AIService.instance.generateContentWithPdf(
         systemPrompt,
@@ -951,6 +951,17 @@ IMPORTANT:
 
         if (existingContent.docs.isNotEmpty) {
           debugPrint('Content already exists for topic: ${topicDoc['title']}, skipping...');
+          if (mounted) {
+            setState(() {
+              _currentTopicIndex = topicIndex + 1;
+              _currentProcessingStep = 'Skipping generated: ${topicDoc['title']}';
+              _processingProgress =
+                  0.3 +
+                  ((topicIndex / _generatedTopics.length) *
+                      0.6); // 30-90% for content generation
+            });
+            await Future.delayed(const Duration(milliseconds: 100));
+          }
           continue;
         }
 
@@ -1207,6 +1218,96 @@ IMPORTANT:
     );
   }
 
+  Widget _buildTopicsStatusList() {
+    if (_generatedTopics.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final topicsWithContent = _generatedTopics
+        .where((doc) =>
+            (doc.data() as Map<String, dynamic>)['content_generated'] == true)
+        .length;
+    final allGenerated = topicsWithContent == _generatedTopics.length;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color:
+            allGenerated ? Colors.green.withAlpha(25) : Colors.blue.withAlpha(25),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+            color: allGenerated
+                ? Colors.green.withAlpha(76)
+                : Colors.blue.withAlpha(76)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                allGenerated ? Icons.check_circle : Icons.info,
+                color: allGenerated ? Colors.green : Colors.blue,
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  allGenerated
+                      ? 'All content generated for ${_generatedTopics.length} topics!'
+                      : '$topicsWithContent of ${_generatedTopics.length} topics have content',
+                  style: TextStyle(
+                    color: allGenerated ? Colors.green : Colors.blue,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (!allGenerated) ...[
+            const SizedBox(height: 12),
+            const Text(
+              'Topics needing content:',
+              style: TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              constraints: const BoxConstraints(maxHeight: 150),
+              child: SingleChildScrollView(
+                child: Column(
+                  children: _generatedTopics.where((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    return data['content_generated'] != true;
+                  }).map((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 4.0),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.hourglass_empty,
+                              color: Colors.white38, size: 14),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              data['title'] ?? 'Untitled Topic',
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 12),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildMaterialsStep() {
     return _buildStepUI(
       title: 'Step 2: Generate Content from Materials',
@@ -1214,29 +1315,7 @@ IMPORTANT:
           'Upload up to 10 study material PDFs. The AI will use these to create content for the topics from Step 1.',
       content: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.blue.withAlpha(25),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.blue.withAlpha(76)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.info, color: Colors.blue, size: 20),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    '${_generatedTopics.length} topics ready for content generation',
-                    style: const TextStyle(
-                      color: Colors.blue,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _buildTopicsStatusList(),
           const SizedBox(height: 24),
           _buildFileUploadBox(
             title: 'Study Material Documents (${_materialFiles.length}/10)',
@@ -1320,7 +1399,7 @@ IMPORTANT:
                     child: Text(
                       _currentProcessingStep.isNotEmpty
                           ? _currentProcessingStep
-                          : 'AI is generating content...',
+                          : 'AI is generating content...', 
                       style: const TextStyle(
                         fontSize: 16,
                         color: Colors.white,

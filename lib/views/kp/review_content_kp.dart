@@ -15,6 +15,7 @@ class ReviewContentKPPage extends StatefulWidget {
 
 class _ReviewContentKPPageState extends State<ReviewContentKPPage> {
   Future<Map<String, dynamic>>? _contentFuture;
+  bool _isProcessingAction = false; // Prevents duplicate clicks
 
   @override
   void initState() {
@@ -22,8 +23,10 @@ class _ReviewContentKPPageState extends State<ReviewContentKPPage> {
     _contentFuture = _loadTopicsAndContent();
   }
 
-  // Check if all topics are accepted by KP
-  Future<bool> _checkAllTopicsAccepted() async {
+  // --- FIX: Updated logic to be more explicit and reliable ---
+  /// Checks if all topics are in a "completed" state from the KP's perspective.
+  /// If so, it updates the parent subject's status to 'admin_review'.
+  Future<void> _checkAndFinalizeSubjectStatus() async {
     try {
       final allTopicsSnapshot = await FirebaseFirestore.instance
           .collection('subjects')
@@ -31,124 +34,82 @@ class _ReviewContentKPPageState extends State<ReviewContentKPPage> {
           .collection('topics')
           .get();
 
-      if (allTopicsSnapshot.docs.isEmpty) return false;
+      if (allTopicsSnapshot.docs.isEmpty) return;
 
-      // Check if all topics are either pending_review or approved
-      for (final topicDoc in allTopicsSnapshot.docs) {
+      // A topic is considered "processed" by the KP if its status is no longer 'generated' or 'regenerating'.
+      final allTopicsProcessed = allTopicsSnapshot.docs.every((topicDoc) {
         final status = topicDoc.data()['status'] as String?;
-        if (status == 'generated' || status == 'regenerating' || status == null) {
-          return false; // Still has topics that KP hasn't accepted
-        }
-      }
+        return status != 'generated' && status != 'regenerating';
+      });
 
-      return true; // All topics have been processed by KP
-    } catch (e) {
-      debugPrint('Error checking topic acceptance: $e');
-      return false;
-    }
-  }
-
-  // Update subject status to admin_review when all topics are accepted
-  Future<void> _updateSubjectStatusToAdminReview() async {
-    try {
-      await FirebaseFirestore.instance
-          .collection('subjects')
-          .doc(widget.subjectId)
-          .update({
-            'status': 'admin_review',
-            'all_topics_accepted_at': FieldValue.serverTimestamp(),
-          });
-      debugPrint('Subject status updated to admin_review');
-    } catch (e) {
-      debugPrint('Error updating subject status: $e');
-    }
-  }
-
-  // Accept all topics - mark all as ready for admin review
-  Future<void> _acceptAllTopics() async {
-    try {
-      // Get topics with 'generated' status
-      final generatedTopicsSnapshot = await FirebaseFirestore.instance
-          .collection('subjects')
-          .doc(widget.subjectId)
-          .collection('topics')
-          .where('status', isEqualTo: 'generated')
-          .get();
-
-      // Get topics with null status (topics that don't have status field)
-      final nullStatusTopicsSnapshot = await FirebaseFirestore.instance
-          .collection('subjects')
-          .doc(widget.subjectId)
-          .collection('topics')
-          .where('status', isNull: true)
-          .get();
-
-      final allTopicDocs = [...generatedTopicsSnapshot.docs, ...nullStatusTopicsSnapshot.docs];
-
-      if (allTopicDocs.isEmpty) {
-        if (!mounted) return;
-        Toast.show(context, 'No topics to accept', type: ToastType.info);
-        return;
-      }
-
-      int acceptedCount = 0;
-      for (final topicDoc in allTopicDocs) {
+      if (allTopicsProcessed) {
         await FirebaseFirestore.instance
             .collection('subjects')
             .doc(widget.subjectId)
-            .collection('topics')
-            .doc(topicDoc.id)
             .update({
-              'status': 'pending_review',
-              'accepted_by_kp': true,
-              'accepted_at': FieldValue.serverTimestamp(),
+              'status': 'admin_review',
+              'all_topics_accepted_at': FieldValue.serverTimestamp(),
             });
-        acceptedCount++;
+        debugPrint('All topics accepted. Subject status updated to admin_review.');
+        if (mounted) {
+          Toast.show(context, 'All topics accepted! Subject sent for admin review.', type: ToastType.success);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error checking topic acceptance: $e');
+    }
+  }
+
+  // --- Action: Accept all remaining topics ---
+  Future<void> _acceptAllTopics() async {
+    setState(() => _isProcessingAction = true);
+    try {
+      // Correctly target topics that are 'generated' or have no status field yet
+      final topicsToAcceptSnapshot = await FirebaseFirestore.instance
+          .collection('subjects')
+          .doc(widget.subjectId)
+          .collection('topics')
+          .where('status', whereIn: ['generated', null]).get();
+
+      if (topicsToAcceptSnapshot.docs.isEmpty) {
+        if (!mounted) return;
+        Toast.show(context, 'All topics have already been accepted.', type: ToastType.info);
+        return;
       }
 
-      // Check if all topics are now accepted and update subject status
-      final allAccepted = await _checkAllTopicsAccepted();
-      if (allAccepted) {
-        await _updateSubjectStatusToAdminReview();
-        if (!mounted) return;
-        Toast.show(context, 'All $acceptedCount topics accepted! Subject is now ready for admin review.', type: ToastType.success);
-      } else {
-        if (!mounted) return;
-        Toast.show(context, 'Successfully accepted $acceptedCount topics for admin review', type: ToastType.success);
-      }
-
-      // Refresh the content
-      if (mounted) {
-        setState(() {
-          _contentFuture = _loadTopicsAndContent();
+      final batch = FirebaseFirestore.instance.batch();
+      for (final topicDoc in topicsToAcceptSnapshot.docs) {
+        batch.update(topicDoc.reference, {
+          'status': 'pending_review',
+          'accepted_by_kp': true,
+          'accepted_at': FieldValue.serverTimestamp(),
         });
       }
+      await batch.commit();
+
+      if (mounted) {
+        Toast.show(context, 'Accepted ${topicsToAcceptSnapshot.docs.length} remaining topics.', type: ToastType.success);
+      }
+      await _checkAndFinalizeSubjectStatus();
     } catch (e) {
       debugPrint('Error accepting all topics: $e');
       if (mounted) {
         Toast.show(context, 'Failed to accept topics: $e', type: ToastType.error);
       }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessingAction = false;
+          _contentFuture = _loadTopicsAndContent(); // Refresh UI
+        });
+      }
     }
   }
 
-  // Accept a topic - mark as ready for admin review
+  // --- Action: Accept a single topic ---
   Future<void> _acceptTopic(String topicId) async {
+    setState(() => _isProcessingAction = true);
     try {
-      // Get current topic data to preserve it
-      final topicDoc = await FirebaseFirestore.instance
-          .collection('subjects')
-          .doc(widget.subjectId)
-          .collection('topics')
-          .doc(topicId)
-          .get();
-
-      if (!topicDoc.exists) {
-        if (!mounted) return;
-        Toast.show(context, 'Topic not found', type: ToastType.error);
-        return;
-      }
-
-      // Update topic status and add timestamp
       await FirebaseFirestore.instance
           .collection('subjects')
           .doc(widget.subjectId)
@@ -160,243 +121,133 @@ class _ReviewContentKPPageState extends State<ReviewContentKPPage> {
             'accepted_at': FieldValue.serverTimestamp(),
           });
 
-      // Check if all topics are now accepted and update subject status
-      final allAccepted = await _checkAllTopicsAccepted();
-      if (allAccepted) {
-        await _updateSubjectStatusToAdminReview();
-        if (!mounted) return;
-        Toast.show(context, 'Topic accepted! All topics are now ready for admin review.', type: ToastType.success);
-      } else {
-        if (!mounted) return;
-        Toast.show(context, 'Topic submitted for admin review', type: ToastType.success);
-      }
-
-      // Refresh the content
       if (mounted) {
-        setState(() {
-          _contentFuture = _loadTopicsAndContent();
-        });
+        Toast.show(context, 'Topic accepted and submitted for review.', type: ToastType.success);
       }
+      await _checkAndFinalizeSubjectStatus();
     } catch (e) {
       debugPrint('Error accepting topic: $e');
       if (mounted) {
-        Toast.show(context, 'Failed to submit topic: $e', type: ToastType.error);
+        Toast.show(context, 'Failed to accept topic: $e', type: ToastType.error);
       }
-    }
-  }
-
-  // Accept and regenerate a topic - accept current version and request regeneration
-  Future<void> _acceptAndRegenerateTopic(String topicId) async {
-    try {
-      // First, get the current topic data to preserve it
-      final topicDoc = await FirebaseFirestore.instance
-          .collection('subjects')
-          .doc(widget.subjectId)
-          .collection('topics')
-          .doc(topicId)
-          .get();
-
-      if (!topicDoc.exists) {
-        if (!mounted) return;
-        Toast.show(context, 'Topic not found', type: ToastType.error);
-        return;
-      }
-
-      final topicData = topicDoc.data()!;
-      final originalTitle = topicData['title'] as String?;
-      final originalContent = topicData['content'] as String?;
-
-      // Accept the topic first
-      await FirebaseFirestore.instance
-          .collection('subjects')
-          .doc(widget.subjectId)
-          .collection('topics')
-          .doc(topicId)
-          .update({
-            'status': 'regenerating',
-            'accepted_by_kp': true,
-            'accepted_at': FieldValue.serverTimestamp(),
-            'regenerated_at': FieldValue.serverTimestamp(),
-          });
-
-      if (!mounted) return;
-      Toast.show(context, 'Topic accepted and regeneration requested', type: ToastType.info);
-
-      // Perform regeneration
-      await _performContentRegeneration(topicId, originalTitle, originalContent);
-
-      // After regeneration, update status to pending_review since it was already accepted
-      await FirebaseFirestore.instance
-          .collection('subjects')
-          .doc(widget.subjectId)
-          .collection('topics')
-          .doc(topicId)
-          .update({
-            'status': 'pending_review',
-          });
-
-      // Refresh the content
+    } finally {
       if (mounted) {
         setState(() {
-          _contentFuture = _loadTopicsAndContent();
+          _isProcessingAction = false;
+          _contentFuture = _loadTopicsAndContent(); // Refresh UI
         });
-        Toast.show(context, 'Topic accepted and regenerated successfully', type: ToastType.success);
-      }
-    } catch (e) {
-      debugPrint('Error accepting and regenerating topic: $e');
-      // Reset status on error
-      try {
-        await FirebaseFirestore.instance
-            .collection('subjects')
-            .doc(widget.subjectId)
-            .collection('topics')
-            .doc(topicId)
-            .update({'status': 'generated'});
-      } catch (resetError) {
-        debugPrint('Error resetting topic status: $resetError');
-      }
-
-      if (mounted) {
-        Toast.show(context, 'Failed to accept and regenerate: $e', type: ToastType.error);
       }
     }
   }
-
-  // Regenerate content for a topic
+  
+  // --- Action: Regenerate a single topic ---
   Future<void> _regenerateTopic(String topicId) async {
+    setState(() => _isProcessingAction = true);
     try {
-      // First, get the current topic data to preserve existing information
-      final topicDoc = await FirebaseFirestore.instance
+      final topicRef = FirebaseFirestore.instance
           .collection('subjects')
           .doc(widget.subjectId)
           .collection('topics')
-          .doc(topicId)
-          .get();
+          .doc(topicId);
 
-      if (!topicDoc.exists) {
-        if (!mounted) return;
-        Toast.show(context, 'Topic not found', type: ToastType.error);
-        return;
+      // Mark topic as regenerating for immediate UI feedback
+      await topicRef.update({
+        'status': 'regenerating',
+        'regenerated_at': FieldValue.serverTimestamp(),
+      });
+      
+      // Refresh UI to show "regenerating" state
+      if (mounted) {
+        setState(() {
+         _contentFuture = _loadTopicsAndContent();
+        });
+        Toast.show(context, 'Requesting new content from AI...', type: ToastType.info);
       }
 
-      final topicData = topicDoc.data()!;
-      final originalTitle = topicData['title'] as String?;
-      final originalContent = topicData['content'] as String?;
+      // This is where you would call your AI service.
+      // We will simulate it here.
+      await _performContentRegeneration(topicId);
 
-      // Mark topic as regenerating
-      await FirebaseFirestore.instance
-          .collection('subjects')
-          .doc(widget.subjectId)
-          .collection('topics')
-          .doc(topicId)
-          .update({
-            'status': 'regenerating',
-            'regenerated_at': FieldValue.serverTimestamp(),
-          });
-
-      if (!mounted) return;
-      Toast.show(context, 'Content regeneration requested', type: ToastType.info);
-
-      // Implement actual regeneration logic
-      // This is where you would integrate with your AI service
-      await _performContentRegeneration(topicId, originalTitle, originalContent);
-
-      // Verify the regeneration was successful
-      final updatedDoc = await FirebaseFirestore.instance
-          .collection('subjects')
-          .doc(widget.subjectId)
-          .collection('topics')
-          .doc(topicId)
-          .get();
-
-      if (updatedDoc.exists && updatedDoc.data()?['status'] == 'generated') {
-        // Refresh the content
-        if (mounted) {
-          setState(() {
-            _contentFuture = _loadTopicsAndContent();
-          });
-          Toast.show(context, 'Content regenerated successfully', type: ToastType.success);
-        }
-      } else {
-        // If regeneration failed, reset status
-        await FirebaseFirestore.instance
-            .collection('subjects')
-            .doc(widget.subjectId)
-            .collection('topics')
-            .doc(topicId)
-            .update({'status': 'generated'});
-
-        if (mounted) {
-          Toast.show(context, 'Regeneration completed', type: ToastType.success);
-        }
+      // AI process would set status back to 'generated' upon completion
+      if (mounted) {
+        Toast.show(context, 'Content regenerated successfully!', type: ToastType.success);
       }
     } catch (e) {
-      // Reset status on error
-      try {
-        await FirebaseFirestore.instance
-            .collection('subjects')
-            .doc(widget.subjectId)
-            .collection('topics')
-            .doc(topicId)
-            .update({'status': 'generated'});
-      } catch (resetError) {
-        debugPrint('Error resetting topic status: $resetError');
-      }
-
+      debugPrint('Error regenerating content: $e');
       if (mounted) {
         Toast.show(context, 'Failed to regenerate content: $e', type: ToastType.error);
       }
+      // Reset status on failure
+      try {
+        await FirebaseFirestore.instance.collection('subjects').doc(widget.subjectId)
+        .collection('topics').doc(topicId).update({'status': 'generated'});
+      } catch (resetError) {
+        debugPrint('Failed to reset topic status after error: $resetError');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessingAction = false;
+          _contentFuture = _loadTopicsAndContent(); // Final refresh
+        });
+      }
     }
   }
 
-  // Perform the actual content regeneration
-  Future<void> _performContentRegeneration(String topicId, String? originalTitle, String? originalContent) async {
+  // --- Helper: Simulate AI call for regeneration ---
+  Future<void> _performContentRegeneration(String topicId) async {
     try {
-      // Simulate AI service call - replace this with actual AI service integration
-      await Future.delayed(const Duration(seconds: 3));
+      // Simulate AI service call - replace with actual AI integration
+      await Future.delayed(const Duration(seconds: 5));
 
-      // Generate new content (this would come from your AI service)
-      final regeneratedTitle = originalTitle != null ? '$originalTitle (Regenerated)' : 'New Topic Title';
-      final regeneratedContent = originalContent != null
-          ? '$originalContent\n\n[Regenerated Content Added] - This content has been refreshed and updated with new information.'
-          : 'New generated content for this topic.';
+      final topicDoc = await FirebaseFirestore.instance.collection('subjects').doc(widget.subjectId).collection('topics').doc(topicId).get();
+      final originalTitle = topicDoc.data()?['title'] ?? 'Untitled';
 
-      // Update the topic with regenerated content
-      await FirebaseFirestore.instance
-          .collection('subjects')
-          .doc(widget.subjectId)
-          .collection('topics')
-          .doc(topicId)
-          .update({
-            'title': regeneratedTitle,
-            'content': regeneratedContent,
-            'status': 'generated',
-            'last_regenerated': FieldValue.serverTimestamp(),
-          });
-
-      // Also update content chunks if they exist
-      final chunksSnapshot = await FirebaseFirestore.instance
+      // Delete old content chunks before creating new ones
+      final oldChunksSnapshot = await FirebaseFirestore.instance
           .collection('content_chunks')
           .where('topic_id', isEqualTo: topicId)
           .get();
-
-      for (final chunkDoc in chunksSnapshot.docs) {
-        await chunkDoc.reference.update({
-          'title': '${chunkDoc.data()['title'] ?? 'Content'} (Updated)',
-          'content': '${chunkDoc.data()['content']}\n\n[Updated content for regenerated topic]',
-          'updated_at': FieldValue.serverTimestamp(),
-        });
+      
+      final batch = FirebaseFirestore.instance.batch();
+      for (final doc in oldChunksSnapshot.docs) {
+        batch.delete(doc.reference);
       }
+      
+      // Simulate generating new content
+      final regeneratedContent = 'This is the newly regenerated content for "$originalTitle". It includes updated information and examples based on the latest materials provided.';
+      final chunk1Title = 'Introduction to $originalTitle (Revised)';
+      final chunk2Title = 'Advanced Concepts in $originalTitle (Revised)';
+
+      // Add new chunks
+      final chunksCollection = FirebaseFirestore.instance.collection('content_chunks');
+      batch.set(chunksCollection.doc(), {
+        'title': chunk1Title,
+        'content': regeneratedContent,
+        'order': 1,
+        'topic_id': topicId,
+        'subject_id': widget.subjectId,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+       batch.set(chunksCollection.doc(), {
+        'title': chunk2Title,
+        'content': 'Further details and advanced topics regarding "$originalTitle" are discussed here, providing a deeper understanding.',
+        'order': 2,
+        'topic_id': topicId,
+        'subject_id': widget.subjectId,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // Update the topic status back to 'generated' so KP can review it again
+      batch.update(topicDoc.reference, {
+        'status': 'generated',
+        'last_regenerated': FieldValue.serverTimestamp(),
+      });
+
+      await batch.commit();
 
     } catch (e) {
-      debugPrint('Error in content regeneration: $e');
-      // Reset status to generated so user can try again
-      await FirebaseFirestore.instance
-          .collection('subjects')
-          .doc(widget.subjectId)
-          .collection('topics')
-          .doc(topicId)
-          .update({'status': 'generated'});
+      debugPrint('Error in content regeneration logic: $e');
       rethrow;
     }
   }
@@ -459,6 +310,8 @@ class _ReviewContentKPPageState extends State<ReviewContentKPPage> {
           final subject = data['subject'];
           final topicsWithContent =
               data['topicsWithContent'] as List<Map<String, dynamic>>;
+          
+          final hasUnacceptedTopics = topicsWithContent.any((t) => t['topic']['status'] == 'generated' || t['topic']['status'] == null);
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -490,20 +343,21 @@ class _ReviewContentKPPageState extends State<ReviewContentKPPage> {
               const SizedBox(height: 12),
               Text(
                 _getSubjectStatusDescription(subject['status']),
-                style: TextStyle(color: Colors.white70),
+                style: const TextStyle(color: Colors.white70),
               ),
               const SizedBox(height: 16),
               // Accept all button
+              if(hasUnacceptedTopics)
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: _acceptAllTopics,
+                  onPressed: _isProcessingAction ? null : _acceptAllTopics,
                   icon: const Icon(Icons.checklist, size: 18),
-                  label: const Text('Accept All Topics'),
+                  label: const Text('Accept All Remaining Topics'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green.withValues(alpha: 0.2),
+                    backgroundColor: Colors.green.withAlpha(25),
                     foregroundColor: Colors.green,
-                    side: BorderSide(color: Colors.green),
+                    side: const BorderSide(color: Colors.green),
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -523,91 +377,78 @@ class _ReviewContentKPPageState extends State<ReviewContentKPPage> {
     );
   }
 
-  // Helper methods for subject status
+  // --- UI Helper Methods ---
+
   Color _getSubjectStatusColor(String? status) {
     switch (status) {
-      case 'admin_review':
-        return Colors.blue;
-      case 'approved':
-        return Colors.green;
-      case 'rejected':
-        return Colors.red;
-      default:
-        return Colors.orange; // kp_review or default
+      case 'admin_review': return Colors.blue;
+      case 'approved': return Colors.green;
+      case 'rejected': return Colors.red;
+      default: return Colors.orange;
     }
   }
 
   String _getSubjectStatusText(String? status) {
     switch (status) {
-      case 'admin_review':
-        return 'READY FOR ADMIN REVIEW';
-      case 'approved':
-        return 'APPROVED BY ADMIN';
-      case 'rejected':
-        return 'REJECTED BY ADMIN';
-      default:
-        return 'KP REVIEW IN PROGRESS';
+      case 'admin_review': return 'PENDING ADMIN REVIEW';
+      case 'approved': return 'APPROVED BY ADMIN';
+      case 'rejected': return 'REJECTED BY ADMIN';
+      default: return 'KP REVIEW IN PROGRESS';
     }
   }
 
   String _getSubjectStatusDescription(String? status) {
     switch (status) {
-      case 'admin_review':
-        return 'All topics have been accepted by you. The subject is now ready for admin review. You can still make changes if needed.';
-      case 'approved':
-        return 'This subject has been approved by the admin and is ready for student use.';
-      case 'rejected':
-        return 'This subject was rejected by the admin. Please review the feedback and make necessary changes.';
-      default:
-        return 'Review each topic for accuracy and completeness. Accept topics individually or use "Accept All Topics" when ready.';
+      case 'admin_review': return 'All topics have been accepted. The subject is now waiting for the administrator to approve it.';
+      case 'approved': return 'This subject has been approved by the admin and is ready for students.';
+      case 'rejected': return 'This subject was rejected by the admin. Please review feedback and make changes.';
+      default: return 'Review each topic below. You can accept topics individually or use "Accept All" when you are ready.';
     }
   }
 
+  Color _getTopicStatusColor(String? status) {
+    switch (status) {
+      case 'pending_review': return Colors.blue;
+      case 'approved': return Colors.green;
+      case 'rejected': return Colors.red;
+      case 'regenerating': return Colors.orange;
+      default: return Colors.grey;
+    }
+  }
+
+  String _getTopicStatusText(String? status) {
+    switch (status) {
+      case 'pending_review': return 'ACCEPTED BY KP';
+      case 'approved': return 'APPROVED BY ADMIN';
+      case 'rejected': return 'REJECTED BY ADMIN';
+      case 'regenerating': return 'REGENERATING';
+      default: return 'GENERATED';
+    }
+  }
+  
   Widget _buildTopicCard(Map<String, dynamic> item) {
     final topic = item['topic'];
     final chunks = item['chunks'] as List<dynamic>;
     final topicId = item['topicId'] as String;
 
-    Color statusColor;
-    String statusText =
-        (topic['status'] as String?)?.replaceAll('_', ' ').toUpperCase() ?? 'GENERATED';
-    switch (topic['status']) {
-      case 'approved':
-        statusColor = Colors.green;
-        break;
-      case 'rejected':
-        statusColor = Colors.red;
-        break;
-      case 'pending_review':
-        statusColor = Colors.blue;
-        break;
-      case 'regenerating':
-        statusColor = Colors.orange;
-        break;
-      default:
-        statusColor = Colors.grey;
-    }
-
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       child: ExpansionTile(
         title: Text(
-          topic['title'],
+          topic['title'] ?? 'Untitled Topic',
           style: const TextStyle(
               fontWeight: FontWeight.bold, color: Colors.white),
         ),
         subtitle: Text(
-          'Status: $statusText',
-          style: TextStyle(color: statusColor, fontWeight: FontWeight.w500),
+          'Status: ${_getTopicStatusText(topic['status'])}',
+          style: TextStyle(color: _getTopicStatusColor(topic['status']), fontWeight: FontWeight.w500),
         ),
         children: [
           Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Content chunks
                 if (chunks.isEmpty)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 16.0),
@@ -615,103 +456,8 @@ class _ReviewContentKPPageState extends State<ReviewContentKPPage> {
                   )
                 else
                   ...chunks.map((chunk) => _buildContentChunk(chunk)),
-
                 const Divider(height: 24),
-
-                // Action buttons for KP
-                if (topic['status'] == 'generated' || topic['status'] == null)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8.0),
-                    child: Column(
-                      children: [
-                        // First row: Accept and Regenerate
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: () => _acceptTopic(topicId),
-                                icon: const Icon(Icons.check, size: 16),
-                                label: const Text('Accept'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.green.withValues(alpha: 0.2),
-                                  foregroundColor: Colors.green,
-                                  side: BorderSide(color: Colors.green),
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: () => _regenerateTopic(topicId),
-                                icon: const Icon(Icons.refresh, size: 16),
-                                label: const Text('Regenerate'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.orange.withValues(alpha: 0.2),
-                                  foregroundColor: Colors.orange,
-                                  side: BorderSide(color: Colors.orange),
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        // Second row: Accept and Regenerate
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: () => _acceptAndRegenerateTopic(topicId),
-                            icon: const Icon(Icons.auto_awesome, size: 16),
-                            label: const Text('Accept & Regenerate'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.purple.withValues(alpha: 0.2),
-                              foregroundColor: Colors.purple,
-                              side: BorderSide(color: Colors.purple),
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                else if (topic['status'] == 'regenerating')
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16.0),
-                    child: Center(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
-                            ),
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            'Regenerating content...',
-                            style: TextStyle(color: Colors.orange),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                else
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 16.0),
-                    child: Center(
-                      child: Text(
-                        'Topic $statusText',
-                        style: TextStyle(
-                          color: statusColor,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ),
+                _buildTopicActions(topic, topicId),
               ],
             ),
           ),
@@ -720,12 +466,77 @@ class _ReviewContentKPPageState extends State<ReviewContentKPPage> {
     );
   }
 
+  Widget _buildTopicActions(Map<String, dynamic> topic, String topicId) {
+    final status = topic['status'] as String?;
+
+    switch (status) {
+      case 'generated':
+      case null: // Treat null status as 'generated'
+        return Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: _isProcessingAction ? null : () => _acceptTopic(topicId),
+                icon: const Icon(Icons.check, size: 16),
+                label: const Text('Accept'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green.withAlpha(25),
+                  foregroundColor: Colors.green,
+                  side: const BorderSide(color: Colors.green),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: _isProcessingAction ? null : () => _regenerateTopic(topicId),
+                icon: const Icon(Icons.refresh, size: 16),
+                label: const Text('Regenerate'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue.withAlpha(25),
+                  foregroundColor: Colors.blue,
+                  side: const BorderSide(color: Colors.blue),
+                ),
+              ),
+            ),
+          ],
+        );
+      case 'regenerating':
+        return const Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 16, height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.orange)),
+              ),
+              SizedBox(width: 8),
+              Text('Regenerating content...', style: TextStyle(color: Colors.orange)),
+            ],
+          ),
+        );
+      default:
+        return Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.check_circle, color: _getTopicStatusColor(status), size: 16),
+              const SizedBox(width: 8),
+              Text(
+                _getTopicStatusText(status),
+                style: TextStyle(color: _getTopicStatusColor(status), fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        );
+    }
+  }
+
   Widget _buildContentChunk(Map<String, dynamic> chunk) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        // FIX: Replaced deprecated `withOpacity` with `withAlpha`.
         color: Colors.black.withAlpha((0.2 * 255).round()),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.white12, width: 0.5),
@@ -734,13 +545,13 @@ class _ReviewContentKPPageState extends State<ReviewContentKPPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            chunk['title'],
+            chunk['title'] ?? 'Untitled Chunk',
             style: TextStyle(
                 fontWeight: FontWeight.w600, color: Colors.blue[300]),
           ),
           const SizedBox(height: 8),
           Text(
-            chunk['content'],
+            chunk['content'] ?? 'No content',
             style: const TextStyle(color: Colors.white70, height: 1.5),
           ),
         ],
@@ -765,7 +576,7 @@ class _ReviewContentKPPageState extends State<ReviewContentKPPage> {
             ),
             SizedBox(height: 8),
             Text(
-              'Use the upload content feature to generate topics and learning materials.',
+              'Use the "Upload Content" feature on your dashboard to generate topics and learning materials.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.white70),
             ),

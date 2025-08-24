@@ -255,6 +255,44 @@ class FirestoreCacheService {
     return [];
   }
 
+  // --- FIX: Added new method to fetch subjects ready for admin review ---
+  /// Get subjects pending admin review with caching
+  Future<List<Map<String, dynamic>>> getSubjectsPendingReview({
+    int limit = 10,
+    bool forceRefresh = false,
+  }) async {
+    const cacheKey = 'subjects_pending_review';
+    
+    if (!forceRefresh) {
+      final cached = await _cache.get<List<dynamic>>(cacheKey, ttl: const Duration(minutes: 5));
+      if (cached != null) {
+        return cached.cast<Map<String, dynamic>>();
+      }
+    }
+
+    try {
+      final subjects = await getCollection(
+        'subjects',
+        queryBuilder: (ref) => ref.where('status', isEqualTo: 'admin_review').limit(limit),
+        cacheTtl: const Duration(minutes: 5),
+        forceRefresh: forceRefresh,
+      );
+
+      await _cache.set(cacheKey, subjects, ttl: const Duration(minutes: 5));
+      return subjects;
+    } catch (e) {
+      debugPrint('Firestore error getting pending review subjects: $e');
+      
+      final cached = await _cache.get<List<dynamic>>(cacheKey);
+      if (cached != null) {
+        debugPrint('Returning cached pending review subjects due to Firestore error');
+        return cached.cast<Map<String, dynamic>>();
+      }
+    }
+
+    return [];
+  }
+
   /// Update document and invalidate related cache
   Future<bool> updateDocument(
     String collection,

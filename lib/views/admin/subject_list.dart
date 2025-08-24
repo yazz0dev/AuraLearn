@@ -1,4 +1,3 @@
-import 'package:auralearn/components/authenticated_app_layout.dart';
 import 'package:auralearn/components/skeleton_loader.dart';
 import 'package:auralearn/models/subject_model.dart';
 import 'package:auralearn/services/firestore_cache_service.dart';
@@ -6,7 +5,6 @@ import 'package:auralearn/utils/page_transitions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:go_router/go_router.dart';
-import '../../enums/user_role.dart';
 
 class SubjectListScreen extends StatefulWidget {
   const SubjectListScreen({super.key});
@@ -17,7 +15,6 @@ class SubjectListScreen extends StatefulWidget {
 
 class _SubjectListScreenState extends State<SubjectListScreen>
     with TickerProviderStateMixin {
-  int _currentIndex = 2; // Subject list is at index 2
   late final Stream<List<Subject>> _subjectsStream;
   late final AnimationController _pageController;
   final FirestoreCacheService _firestoreCache = FirestoreCacheService();
@@ -37,93 +34,66 @@ class _SubjectListScreenState extends State<SubjectListScreen>
     super.dispose();
   }
 
-  void _onNavigate(int index) {
-    if (index == _currentIndex) return;
-    setState(() => _currentIndex = index);
-    switch (index) {
-      case 0:
-        context.go('/admin/dashboard');
-        break;
-      case 1:
-        context.go('/admin/users');
-        break;
-      case 2:
-        break;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    return AuthenticatedAppLayout(
-      role: UserRole.admin,
-      appBarTitle: 'Subject Management',
-      bottomNavIndex: _currentIndex,
-      onBottomNavTap: _onNavigate,
-      appBarActions: [
-        IconButton(
-          icon: const Icon(Icons.add),
-          onPressed: () => context.push('/admin/create-subject'),
-          tooltip: 'Create Subject',
-        ),
-      ],
-      child: PageTransitions.buildSubtlePageTransition(
-        controller: _pageController,
-        child: StreamBuilder<List<Subject>>(
-          stream: _subjectsStream,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return _buildLoadingSkeleton();
-            }
+    // The AuthenticatedAppLayout is now handled by AdminLayout
+    return PageTransitions.buildSubtlePageTransition(
+      controller: _pageController,
+      child: StreamBuilder<List<Subject>>(
+        stream: _subjectsStream,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return _buildLoadingSkeleton();
+          }
 
-            if (snapshot.hasError) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Error loading subjects',
-                      style: TextStyle(color: Colors.red[300], fontSize: 18),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      snapshot.error.toString(),
-                      style: const TextStyle(color: Colors.white70),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            final subjects = snapshot.data ?? [];
-
-            if (subjects.isEmpty) {
-              return _buildEmptyState();
-            }
-
-            return AnimationLimiter(
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: subjects.length,
-                itemBuilder: (context, index) {
-                  final subject = subjects[index];
-                  return AnimationConfiguration.staggeredList(
-                    position: index,
-                    duration: const Duration(milliseconds: 200),
-                    child: SlideAnimation(
-                      verticalOffset: 15.0,
-                      child: FadeInAnimation(
-                        child: _buildSubjectCard(subject),
-                      ),
-                    ),
-                  );
-                },
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Error loading subjects',
+                    style: TextStyle(color: Colors.red[300], fontSize: 18),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    snapshot.error.toString(),
+                    style: const TextStyle(color: Colors.white70),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
             );
-          },
-        ),
+          }
+
+          final subjects = snapshot.data ?? [];
+
+          if (subjects.isEmpty) {
+            return _buildEmptyState();
+          }
+
+          return AnimationLimiter(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: subjects.length,
+              itemBuilder: (context, index) {
+                final subject = subjects[index];
+                return AnimationConfiguration.staggeredList(
+                  position: index,
+                  duration: const Duration(milliseconds: 200),
+                  child: SlideAnimation(
+                    verticalOffset: 15.0,
+                    child: FadeInAnimation(
+                      child: _buildSubjectCard(subject),
+                    ),
+                  ),
+                );
+              },
+            ),
+          );
+        },
       ),
     );
   }
@@ -168,7 +138,8 @@ class _SubjectListScreenState extends State<SubjectListScreen>
                                 : Colors.red.withAlpha(30),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                                color: subject.isActive ? Colors.green : Colors.red),
+                                color:
+                                    subject.isActive ? Colors.green : Colors.red),
                           ),
                           child: Text(
                             subject.isActive ? 'Active' : 'Inactive',
@@ -181,7 +152,8 @@ class _SubjectListScreenState extends State<SubjectListScreen>
                         ),
                         const SizedBox(width: 8),
                         IconButton(
-                          icon: const Icon(Icons.edit, size: 20, color: Colors.white70),
+                          icon: const Icon(Icons.edit,
+                              size: 20, color: Colors.white70),
                           onPressed: () {
                             context.pushNamed(
                               'admin-edit-subject',
@@ -205,7 +177,8 @@ class _SubjectListScreenState extends State<SubjectListScreen>
                 if (isExpanded) ...[
                   const SizedBox(height: 16),
                   if (subject.createdAt != null)
-                    _buildDetailRow('Created', _formatDate(subject.createdAt!.toDate())),
+                    _buildDetailRow(
+                        'Created', _formatDate(subject.createdAt!.toDate())),
                   _buildDetailRow('Status', subject.status ?? 'Not Started'),
                   const SizedBox(height: 12),
                   SizedBox(
@@ -257,7 +230,8 @@ class _SubjectListScreenState extends State<SubjectListScreen>
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.deepPurple,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
           ),
         ],
@@ -266,38 +240,19 @@ class _SubjectListScreenState extends State<SubjectListScreen>
   }
 
   Widget _buildLoadingSkeleton() {
+    // Consistent skeleton using a ListView of cards
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: 5,
-      itemBuilder: (context, index) {
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: SkeletonLoader(
-            isLoading: true,
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SkeletonShapes.text(width: double.infinity, height: 20),
-                  const SizedBox(height: 8),
-                  SkeletonShapes.text(width: 100, height: 14),
-                  const SizedBox(height: 12),
-                  SkeletonShapes.text(width: double.infinity, height: 14),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
+      padding: const EdgeInsets.all(16.0),
+      itemCount: 6,
+      itemBuilder: (context, index) => Padding(
+        padding: const EdgeInsets.only(bottom: 12.0),
+        child: SkeletonLoader(
+          isLoading: true,
+          child: SkeletonShapes.card(height: 100),
+        ),
+      ),
     );
   }
-
-
 
   Widget _buildDetailRow(String label, String value) {
     return Padding(
@@ -327,9 +282,9 @@ class _SubjectListScreenState extends State<SubjectListScreen>
     return '${date.day}/${date.month}/${date.year}';
   }
 
- void _navigateToReview(String subjectId) {
+  void _navigateToReview(String subjectId) {
     debugPrint('Navigating to review with subjectId: $subjectId');
-    // --- FIX: Use named route with path parameters for type-safe navigation ---
-    context.goNamed('admin-review-subject', pathParameters: {'subjectId': subjectId});
+    context.goNamed('admin-review-subject',
+        pathParameters: {'subjectId': subjectId});
   }
 }

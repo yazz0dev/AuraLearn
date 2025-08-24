@@ -1,5 +1,6 @@
 import 'package:auralearn/components/loading_widget.dart';
 import 'package:auralearn/services/user_role_cache.dart';
+import 'package:auralearn/views/admin/admin_layout.dart';
 import 'package:auralearn/views/admin/create_subject.dart';
 import 'package:auralearn/views/admin/dashboard_admin.dart';
 import 'package:auralearn/views/admin/edit_subject.dart';
@@ -14,7 +15,11 @@ import 'package:auralearn/views/login.dart';
 import 'package:auralearn/views/platform_aware_landing.dart';
 import 'package:auralearn/views/student/dashboard.dart';
 import 'package:auralearn/views/student/profile.dart';
+import 'package:auralearn/views/student/progress_screen.dart';
 import 'package:auralearn/views/student/register.dart';
+import 'package:auralearn/views/student/schedule_screen.dart';
+import 'package:auralearn/views/student/student_layout.dart';
+import 'package:auralearn/views/student/subjects_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -22,14 +27,12 @@ import 'package:go_router/go_router.dart';
 import 'models/subject_model.dart';
 
 /// Notifier to expose authentication state changes to GoRouter.
-/// This is the standard way to implement authentication-based redirects.
 class GoRouterNotifier extends ChangeNotifier {
   bool _isLoggedIn = false;
 
   GoRouterNotifier() {
     FirebaseAuth.instance.authStateChanges().listen((user) {
       _isLoggedIn = user != null;
-      // Invalidate cache when user logs out
       if (user == null) {
         UserRoleCache().invalidateCache();
       }
@@ -49,15 +52,10 @@ final GoRouter router = GoRouter(
       path: '/',
       name: 'home',
       builder: (context, state) {
-        // This route should primarily show the landing page for non-authenticated users
-        // Authenticated users will be redirected by the redirect logic above
         final user = FirebaseAuth.instance.currentUser;
         if (user == null) {
           return const PlatformAwareLandingScreen();
         }
-
-        // Fallback: If somehow an authenticated user reaches here, show loading
-        // while redirect logic handles them
         return const AuraLearnLoadingWidget();
       },
     ),
@@ -76,92 +74,93 @@ final GoRouter router = GoRouter(
       name: 'forgot-password',
       builder: (context, state) => const ForgotPasswordScreen(),
     ),
-    // Authenticated Routes
-    GoRoute(
-      path: '/student/dashboard',
-      name: 'student-dashboard',
-      builder: (context, state) => const StudentDashboard(),
-    ),
-    GoRoute(
-      path: '/student/profile',
-      name: 'student-profile',
-      builder: (context, state) => const ProfilePage(),
-    ),
-    GoRoute(
-      path: '/student/subjects',
-      name: 'student-subjects',
-      builder: (context, state) => const Scaffold(
-        body: Center(
-          child: Text(
-            'Subjects - Coming Soon',
-            style: TextStyle(color: Colors.white),
-          ),
+
+    // --- ADMIN SHELL ROUTE ---
+    ShellRoute(
+      builder: (context, state, child) {
+        final page = state.uri.pathSegments.last;
+        return AdminLayout(page: page, key: const ValueKey('AdminShell'));
+      },
+      routes: [
+        GoRoute(
+          path: '/admin/dashboard',
+          name: 'admin-dashboard',
+          builder: (context, state) => const DashboardAdmin(),
         ),
-      ),
-    ),
-    GoRoute(
-      path: '/student/schedule',
-      name: 'student-schedule',
-      builder: (context, state) => const Scaffold(
-        body: Center(
-          child: Text(
-            'Schedule - Coming Soon',
-            style: TextStyle(color: Colors.white),
-          ),
+        GoRoute(
+          path: '/admin/users',
+          name: 'admin-users',
+          builder: (context, state) => const UserManagementScreen(),
         ),
-      ),
-    ),
-    GoRoute(
-      path: '/student/progress',
-      name: 'student-progress',
-      builder: (context, state) => const Scaffold(
-        body: Center(
-          child: Text(
-            'Progress - Coming Soon',
-            style: TextStyle(color: Colors.white),
-          ),
+        GoRoute(
+          path: '/admin/subjects',
+          name: 'admin-subjects',
+          builder: (context, state) => const SubjectListScreen(),
         ),
-      ),
+      ],
     ),
-    GoRoute(
-      path: '/admin/dashboard',
-      name: 'admin-dashboard',
-      builder: (context, state) => const DashboardAdmin(),
-    ),
-    GoRoute(
-      path: '/admin/users',
-      name: 'admin-users',
-      builder: (context, state) => const UserManagementScreen(),
-    ),
-    GoRoute(
-      path: '/admin/subjects',
-      name: 'admin-subjects',
-      builder: (context, state) => const SubjectListScreen(),
-    ),
+
+    // Admin routes that are NOT part of the shell
     GoRoute(
       path: '/admin/create-subject',
       name: 'admin-create-subject',
       builder: (context, state) => const CreateSubjectPage(),
     ),
- GoRoute(
+    GoRoute(
       path: '/admin/edit-subject/:subjectId',
       name: 'admin-edit-subject',
       builder: (context, state) {
-        // Now 'extra' is a strongly-typed Subject object.
         final subject = state.extra as Subject;
         return EditSubjectPage(subject: subject);
       },
     ),
- // FIX: Removed the redundant '/admin/review-content' route
     GoRoute(
       path: '/admin/review-subject/:subjectId',
       name: 'admin-review-subject',
       builder: (context, state) {
-        // FIX: Use the correctly renamed class and pass the parameter
         final subjectId = state.pathParameters['subjectId']!;
         return ReviewSubjectPage(subjectId: subjectId);
       },
     ),
+
+    // --- STUDENT SHELL ROUTE ---
+    ShellRoute(
+      builder: (context, state, child) {
+        final page = state.uri.pathSegments.last;
+        return StudentLayout(page: page, key: const ValueKey('StudentShell'));
+      },
+      routes: [
+        GoRoute(
+          path: '/student/dashboard',
+          name: 'student-dashboard',
+          builder: (context, state) => const StudentDashboard(),
+        ),
+        GoRoute(
+          path: '/student/subjects',
+          name: 'student-subjects',
+          builder: (context, state) => const SubjectsScreen(),
+        ),
+        GoRoute(
+          path: '/student/schedule',
+          name: 'student-schedule',
+          builder: (context, state) => const ScheduleScreen(),
+        ),
+        GoRoute(
+          path: '/student/progress',
+          name: 'student-progress',
+          builder: (context, state) => const ProgressScreen(),
+        ),
+      ],
+    ),
+    
+    // Student routes that are NOT part of the shell
+    GoRoute(
+      path: '/student/profile',
+      name: 'student-profile',
+      builder: (context, state) => const ProfilePage(),
+    ),
+
+    // KP Routes
     GoRoute(
       path: '/kp/dashboard',
       name: 'kp-dashboard',
@@ -190,52 +189,32 @@ final GoRouter router = GoRouter(
   ],
   redirect: (context, state) async {
     final bool isLoggedIn = FirebaseAuth.instance.currentUser != null;
-    final String location = state.uri.toString();
+    final String location = state.uri.path;
 
-    // Define routes that are part of the authentication flow.
-    final bool isAuthenticating =
-        location == '/login' ||
+    final bool isAuthenticating = location == '/login' ||
         location == '/register' ||
         location == '/forgot-password';
 
-    // Define public routes that can be accessed without logging in.
     final bool isPublicRoute = location == '/';
 
-    // If the user is not logged in and not on a public/auth route, redirect to login.
     if (!isLoggedIn && !isAuthenticating && !isPublicRoute) {
       return '/login';
     }
 
-    // If the user is logged in but trying to access an auth page or home page,
-    // redirect them to their role-specific dashboard.
     if (isLoggedIn && (isAuthenticating || location == '/')) {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        try {
-          // Use cached role to avoid repeated Firestore calls
-          final role = await UserRoleCache().getUserRole();
-
-          if (role != null) {
-            switch (role) {
-              case 'Admin':
-                return '/admin/dashboard';
-              case 'KP':
-                return '/kp/dashboard';
-              case 'Student':
-                return '/student/dashboard';
-              default:
-                return '/';
-            }
-          }
-        } catch (e) {
-          debugPrint('Error fetching user role: $e');
+      final role = await UserRoleCache().getUserRole();
+      switch (role) {
+        case 'Admin':
+          return '/admin/dashboard';
+        case 'KP':
+          return '/kp/dashboard';
+        case 'Student':
+          return '/student/dashboard';
+        default:
           return '/';
-        }
       }
-      return '/';
     }
 
-    // No redirection needed.
     return null;
   },
 );

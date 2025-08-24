@@ -13,15 +13,19 @@ class AIService {
   // Cache service for AI responses
   final CacheService _cache = CacheService();
 
-  // Initialize the Google AI model using the Firebase SDK
-  // This securely calls the Gemini API through a Firebase proxy.
-
-  // Set the thinking configuration to disable thinking for faster responses
-  final _model = FirebaseAI.googleAI().generativeModel(
-    // FIX: Ensured the correct and latest model name is used.
+  // --- FIX: Initialize both the primary and fallback models as requested. ---
+  final _primaryModel = FirebaseAI.googleAI().generativeModel(
     model: 'gemini-2.5-flash',
     generationConfig: GenerationConfig(
-      temperature: 0.4, // Controls randomness for more consistent output
+      temperature: 0.4,
+      thinkingConfig: ThinkingConfig(thinkingBudget: 0),
+    ),
+  );
+
+  final _fallbackModel = FirebaseAI.googleAI().generativeModel(
+    model: 'gemini-2.5-flash-lite',
+    generationConfig: GenerationConfig(
+      temperature: 0.4,
       thinkingConfig: ThinkingConfig(thinkingBudget: 0),
     ),
   );
@@ -60,10 +64,8 @@ class AIService {
       }
     }
 
-    final result = await _generateContentWithRetry(
-      () => _model.generateContent([Content.text(prompt)]),
-      prompt,
-    );
+    final content = [Content.text(prompt)];
+    final result = await _generateContentWithRetry(content, prompt);
     
     // Cache successful results
     if (useCache && !result.startsWith('Failed') && !result.startsWith('Network') && !result.startsWith('An error')) {
@@ -74,11 +76,11 @@ class AIService {
     return result;
   }
 
-  /// Internal method to handle content generation with retry logic
+  /// Internal method to handle content generation with retry and fallback logic
   Future<String> _generateContentWithRetry(
-    Future<GenerateContentResponse> Function() generateFunction,
-    String prompt, {
-    int maxRetries = 3,
+    List<Content> content,
+    String promptForLogging, {
+    int maxRetries = 2,
   }) async {
     int attempts = 0;
 
@@ -86,63 +88,72 @@ class AIService {
       try {
         attempts++;
         debugPrint(
-          "🤖 AI Service: Starting content generation (attempt $attempts/$maxRetries)",
+          "🤖 AI Service: Generating with primary model (gemini-2.5-flash)... Attempt $attempts/$maxRetries",
         );
-        debugPrint("📝 Prompt length: ${prompt.length} characters");
-        debugPrint(
-          "🔍 First 200 chars of prompt: ${prompt.length > 200 ? prompt.substring(0, 200) : prompt}...",
-        );
+        debugPrint("📝 Prompt length: ${promptForLogging.length} characters");
 
         final startTime = DateTime.now();
-        final response = await generateFunction();
+        final response = await _primaryModel.generateContent(content);
         final endTime = DateTime.now();
         final duration = endTime.difference(startTime);
-
-        debugPrint(
-          "⏱️ AI Service: Request completed in ${duration.inMilliseconds}ms",
-        );
+        debugPrint("⏱️ Primary model request completed in ${duration.inMilliseconds}ms");
 
         if (response.text != null) {
-          debugPrint("✅ AI Service: Response received successfully");
-          debugPrint("📊 Response length: ${response.text!.length} characters");
-          debugPrint(
-            "🔍 First 200 chars of response: ${response.text!.length > 200 ? response.text!.substring(0, 200) : response.text!}...",
-          );
+          debugPrint("✅ Primary model response received successfully");
           return _cleanJsonResponse(response.text!);
         } else {
-          debugPrint("❌ AI Service: Response was empty");
+          debugPrint("❌ Primary model response was empty");
           return 'Failed to generate content. The response was empty.';
         }
       } catch (e) {
-        debugPrint('❌ AI Service Error (attempt $attempts/$maxRetries): $e');
-        debugPrint('🔧 Error type: ${e.runtimeType}');
-
-        // Check if it's a network-related error that we should retry
+        debugPrint('❌ Primary model error (attempt $attempts/$maxRetries): $e');
         final errorString = e.toString().toLowerCase();
+        
+        // --- FIX: Check for rate limit error to trigger fallback model ---
+        final isRateLimitError = errorString.contains('rate limit') ||
+                                 errorString.contains('resource has been exhausted') ||
+                                 errorString.contains('429');
+        
+        if (isRateLimitError) {
+          debugPrint("⚠️ Primary model rate-limited. Switching to fallback (gemini-2.5-flash-lite).");
+          try {
+            final fallbackStartTime = DateTime.now();
+            final fallbackResponse = await _fallbackModel.generateContent(content);
+            final fallbackEndTime = DateTime.now();
+            final fallbackDuration = fallbackEndTime.difference(fallbackStartTime);
+            debugPrint("⏱️ Fallback model request completed in ${fallbackDuration.inMilliseconds}ms");
+            
+            if (fallbackResponse.text != null) {
+              debugPrint("✅ Fallback model succeeded.");
+              return _cleanJsonResponse(fallbackResponse.text!);
+            } else {
+               debugPrint("❌ Fallback model response was empty");
+               return 'Failed to generate content (Fallback response empty).';
+            }
+          } catch (fallbackError) {
+            debugPrint("❌ Fallback model also failed: $fallbackError");
+            return 'An error occurred while generating content (both models failed). Please try again later.';
+          }
+        }
+        
         final isNetworkError =
             errorString.contains('failed to fetch') ||
             errorString.contains('network') ||
             errorString.contains('connection') ||
-            errorString.contains('timeout') ||
-            errorString.contains('ping_failed') ||
-            errorString.contains('clientexception');
+            errorString.contains('timeout');
 
         if (isNetworkError && attempts < maxRetries) {
           debugPrint(
-            '🔄 Network error detected, retrying in ${attempts * 2} seconds...',
+            '🔄 Network error detected, retrying primary model in ${attempts * 2} seconds...',
           );
           await Future.delayed(Duration(seconds: attempts * 2));
-          continue;
+          continue; // Continue the loop to retry with the primary model
         }
 
-        // Return appropriate error message based on error type
-        if (isNetworkError) {
-          return 'Network connection failed. Please check your internet connection and try again.';
-        } else if (errorString.contains('quota') ||
-            errorString.contains('billing')) {
+        // Return appropriate error message for other unrecoverable errors
+        if (errorString.contains('quota') || errorString.contains('billing')) {
           return 'API quota exceeded or billing issue. Please check your Firebase project billing settings.';
-        } else if (errorString.contains('permission') ||
-            errorString.contains('unauthorized')) {
+        } else if (errorString.contains('permission') || errorString.contains('unauthorized')) {
           return 'Permission denied. Please check your Firebase project configuration.';
         } else {
           return 'An error occurred while generating content. Please try again later.';
@@ -190,16 +201,14 @@ class AIService {
     }
 
     try {
-      final result = await _generateContentWithRetry(
-        () => _model.generateContent([
-          Content.multi([
-            TextPart(prompt), 
-            InlineDataPart(mimeType, pdfBytes)
-          ]),
+      final content = [
+        Content.multi([
+          TextPart(prompt), 
+          InlineDataPart(mimeType, pdfBytes)
         ]),
-        prompt,
-        maxRetries: 2, // Fewer retries for PDF processing as it's more resource intensive
-      );
+      ];
+
+      final result = await _generateContentWithRetry(content, prompt);
 
       debugPrint("📄 PDF analysis completed successfully");
       

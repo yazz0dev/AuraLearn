@@ -1,88 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
-class TopNavigationBar extends StatefulWidget {
+// --- FIX: Converted to a StatelessWidget and removed all FirebaseAuth logic. ---
+// This component is now only for unauthenticated views.
+class TopNavigationBar extends StatelessWidget {
   final VoidCallback? onLoginTap;
   final VoidCallback? onRegisterTap;
 
   const TopNavigationBar({super.key, this.onLoginTap, this.onRegisterTap});
-
-  @override
-  State<TopNavigationBar> createState() => _TopNavigationBarState();
-}
-
-class _TopNavigationBarState extends State<TopNavigationBar> {
-  User? _currentUser;
-
-  @override
-  void initState() {
-    super.initState();
-    _currentUser = FirebaseAuth.instance.currentUser;
-    // Listen to auth state changes
-    FirebaseAuth.instance.authStateChanges().listen((user) {
-      if (mounted) {
-        setState(() {
-          _currentUser = user;
-        });
-      }
-    });
-  }
-
-  Future<void> _handleLogout() async {
-    final bool? shouldLogout = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1E1E1E),
-          title: const Text(
-            'Logout',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          content: const Text(
-            'Are you sure you want to logout?',
-            style: TextStyle(color: Colors.white70),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text(
-                'Cancel',
-                style: TextStyle(color: Colors.white70),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Logout'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (shouldLogout == true) {
-      try {
-        await FirebaseAuth.instance.signOut();
-        if (mounted) {
-          context.goNamed('home');
-        }
-      } catch (e) {
-        debugPrint('Logout error: $e');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Logout failed: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -187,44 +112,32 @@ class _TopNavigationBarState extends State<TopNavigationBar> {
     );
   }
 
+  // --- FIX: This method is now simplified to only show Login/Register buttons. ---
   Widget _buildActions(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final bool isSmall = screenWidth < 400;
     final bool isVerySmall = screenWidth < 350;
 
-    if (_currentUser != null) {
-      // User is logged in - show logout button
-      return _buildGlassButton(
-        isVerySmall ? 'Logout' : 'Logout',
-        false,
-        onTap: _handleLogout,
-        isSmall: isSmall,
-        isVerySmall: isVerySmall,
-        isLogout: true,
-      );
-    } else {
-      // User is not logged in - show login/register buttons
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildGlassButton(
-            isVerySmall ? 'Login' : 'Login',
-            false,
-            onTap: widget.onLoginTap,
-            isSmall: isSmall,
-            isVerySmall: isVerySmall,
-          ),
-          SizedBox(width: isVerySmall ? 4 : (isSmall ? 6 : 8)),
-          _buildGlassButton(
-            isVerySmall ? 'Register' : 'Register',
-            true,
-            onTap: widget.onRegisterTap,
-            isSmall: isSmall,
-            isVerySmall: isVerySmall,
-          ),
-        ],
-      );
-    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildGlassButton(
+          isVerySmall ? 'Login' : 'Login',
+          false,
+          onTap: onLoginTap,
+          isSmall: isSmall,
+          isVerySmall: isVerySmall,
+        ),
+        SizedBox(width: isVerySmall ? 4 : (isSmall ? 6 : 8)),
+        _buildGlassButton(
+          isVerySmall ? 'Register' : 'Register',
+          true,
+          onTap: onRegisterTap,
+          isSmall: isSmall,
+          isVerySmall: isVerySmall,
+        ),
+      ],
+    );
   }
 
   Widget _buildGlassButton(
@@ -233,8 +146,9 @@ class _TopNavigationBarState extends State<TopNavigationBar> {
     VoidCallback? onTap,
     bool isSmall = false,
     bool isVerySmall = false,
-    bool isLogout = false,
   }) {
+    // Note: The original implementation had an `isLogout` parameter, which is no longer needed here.
+    // The styling has been preserved without it.
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
@@ -249,48 +163,34 @@ class _TopNavigationBarState extends State<TopNavigationBar> {
             vertical: isVerySmall ? 2 : (isSmall ? 4 : 8),
           ),
           decoration: BoxDecoration(
-            gradient: isLogout
-                ? LinearGradient(
-                    colors: [Colors.red.withValues(alpha: 0.8), Colors.red.shade700],
+            gradient: isPrimary
+                ? const LinearGradient(
+                    colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
                   )
-                : isPrimary
-                    ? LinearGradient(
-                        colors: [const Color(0xFF3B82F6), const Color(0xFF2563EB)],
-                      )
-                    : LinearGradient(
-                        colors: [
-                          Colors.white.withValues(alpha: 0.1),
-                          Colors.white.withValues(alpha: 0.05),
-                        ],
-                      ),
+                : LinearGradient(
+                    colors: [
+                      Colors.white.withValues(alpha: 0.1),
+                      Colors.white.withValues(alpha: 0.05),
+                    ],
+                  ),
             borderRadius: BorderRadius.circular(
               isVerySmall ? 12 : (isSmall ? 16 : 20),
             ),
             border: Border.all(
-              color: isLogout
-                  ? Colors.red.withValues(alpha: 0.5)
-                  : isPrimary
-                      ? const Color(0xFF3B82F6).withValues(alpha: 0.3)
-                      : Colors.white.withValues(alpha: 0.2),
+              color: isPrimary
+                  ? const Color(0xFF3B82F6).withValues(alpha: 0.3)
+                  : Colors.white.withValues(alpha: 0.2),
               width: 1,
             ),
-            boxShadow: isLogout
+            boxShadow: isPrimary
                 ? [
                     BoxShadow(
-                      color: Colors.red.withValues(alpha: 0.3),
+                      color: const Color(0xFF3B82F6).withValues(alpha: 0.3),
                       blurRadius: 4,
                       offset: const Offset(0, 1),
                     ),
                   ]
-                : isPrimary
-                    ? [
-                        BoxShadow(
-                          color: const Color(0xFF3B82F6).withValues(alpha: 0.3),
-                          blurRadius: 4,
-                          offset: const Offset(0, 1),
-                        ),
-                      ]
-                    : null,
+                : null,
           ),
           child: Center(
             child: Text(

@@ -2,11 +2,11 @@
 
 import 'package:auralearn/utils/responsive.dart';
 import 'package:auralearn/utils/page_transitions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
-import '../enums/user_role.dart'; // FIX: Import from the new central location
+import '../enums/user_role.dart';
 import 'bottom_bar.dart';
-import 'top_bar.dart';
 
 class AuthenticatedAppLayout extends StatefulWidget {
   final Widget child;
@@ -17,7 +17,6 @@ class AuthenticatedAppLayout extends StatefulWidget {
   final void Function(int)? onBottomNavTap;
   final bool showBottomBar;
   final bool showCloseButton;
-  // --- FIX: Added an explicit property to control the logout button's visibility ---
   final bool showLogoutButton;
 
   const AuthenticatedAppLayout({
@@ -30,7 +29,7 @@ class AuthenticatedAppLayout extends StatefulWidget {
     this.onBottomNavTap,
     this.showBottomBar = true,
     this.showCloseButton = false,
-    this.showLogoutButton = false, // Default to false for safety
+    this.showLogoutButton = false,
   });
 
   @override
@@ -123,9 +122,6 @@ class _AuthenticatedAppLayoutState extends State<AuthenticatedAppLayout>
     );
   }
 
-  // --- FIX: This fragile logic has been removed. ---
-  // bool _shouldShowLogoutButton(BuildContext context) { ... }
-
   Widget _buildCloseButton() {
     return Container(
       margin: const EdgeInsets.only(right: 8),
@@ -190,8 +186,63 @@ class _AuthenticatedAppLayoutState extends State<AuthenticatedAppLayout>
     );
   }
 
-  Future<void> _handleLogout(BuildContext context) async {
-    // ... (This method remains the same)
+  // --- FIX: Refactored to use the State's context property to satisfy the linter. ---
+  Future<void> _handleLogout() async {
+    // It's safe to use `context` before an await.
+    final bool? shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1E1E1E),
+          title: const Text(
+            'Logout',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          content: const Text(
+            'Are you sure you want to logout?',
+            style: TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Colors.white70),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Logout'),
+            ),
+          ],
+        );
+      },
+    );
+
+    // After the await, we must check if the widget is still in the tree.
+    if (!mounted || shouldLogout != true) return;
+
+    try {
+      await FirebaseAuth.instance.signOut();
+      
+      // Check mounted again after the second await.
+      if (!mounted) return;
+      context.goNamed('home');
+
+    } catch (e) {
+      debugPrint('Logout error: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Logout failed: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -226,7 +277,6 @@ class _AuthenticatedAppLayoutState extends State<AuthenticatedAppLayout>
               _buildDesktopNavigation(context),
               const SizedBox(width: 8),
             ],
-            // --- FIX: Use the new robust property instead of the old method ---
             if (widget.showLogoutButton) ...[
               Container(
                 margin: const EdgeInsets.only(right: 8),
@@ -235,10 +285,8 @@ class _AuthenticatedAppLayoutState extends State<AuthenticatedAppLayout>
                   borderRadius: BorderRadius.circular(12),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(12),
-                    onTap: () {
-                      debugPrint('Logout button tapped');
-                      _handleLogout(context);
-                    },
+                    // --- FIX: onTap now calls the refactored method without passing context. ---
+                    onTap: _handleLogout,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
@@ -267,32 +315,11 @@ class _AuthenticatedAppLayoutState extends State<AuthenticatedAppLayout>
           automaticallyImplyLeading: false,
           centerTitle: true,
         ),
-        body: Stack(
-          children: [
-            // Add TopNavigationBar at the top
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: SafeArea(
-                bottom: false,
-                child: TopNavigationBar(
-                  onLoginTap: () => context.goNamed('login'),
-                  onRegisterTap: () => context.goNamed('register'),
-                ),
-              ),
-            ),
-            // Main content with padding to account for the TopNavigationBar
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 70), // Height of TopNavigationBar
-                child: PageTransitions.buildSubtlePageTransition(
-                  controller: _pageController,
-                  child: widget.child,
-                ),
-              ),
-            ),
-          ],
+        body: SafeArea(
+          child: PageTransitions.buildSubtlePageTransition(
+            controller: _pageController,
+            child: widget.child,
+          ),
         ),
         bottomNavigationBar: widget.showBottomBar && !isDesktop && widget.bottomNavIndex != null && widget.onBottomNavTap != null
             ? SharedBottomBar(

@@ -20,7 +20,6 @@ class ReviewSubjectPage extends StatefulWidget {
 
 class _ReviewSubjectPageState extends State<ReviewSubjectPage> {
   String? _subjectName;
-  int _currentIndex = 0; // Default to dashboard if accessed directly
   bool _isLoading = false;
 
   @override
@@ -59,9 +58,8 @@ class _ReviewSubjectPageState extends State<ReviewSubjectPage> {
     }
   }
 
+  /// Navigates to a different admin page. Used by the desktop navigation bar.
   void _onNavigate(int index) {
-    if (index == _currentIndex) return;
-    setState(() => _currentIndex = index);
     switch (index) {
       case 0:
         context.go('/admin/dashboard');
@@ -113,21 +111,34 @@ class _ReviewSubjectPageState extends State<ReviewSubjectPage> {
     };
   }
 
-  /// Approves the subject, changing its status to 'approved'.
+  /// Approves the subject, changing its status to 'approved' and also approving all its topics.
   Future<void> _approveSubject() async {
     if (widget.subjectId.isEmpty) return;
     setState(() => _isLoading = true);
     try {
-      await FirebaseFirestore.instance
+      final subjectRef = FirebaseFirestore.instance
           .collection('subjects')
-          .doc(widget.subjectId)
-          .update({
-            'status': 'approved',
-            'admin_approved_at': FieldValue.serverTimestamp(),
-          });
+          .doc(widget.subjectId);
+      final topicsSnapshot = await subjectRef.collection('topics').get();
+      final batch = FirebaseFirestore.instance.batch();
+
+      // 1. Update the subject's status and activate it
+      batch.update(subjectRef, {
+        'status': 'approved',
+        'isActive': true,
+        'admin_approved_at': FieldValue.serverTimestamp(),
+      });
+
+      // 2. Update all related topics to 'approved'
+      for (final doc in topicsSnapshot.docs) {
+        batch.update(doc.reference, {'status': 'approved'});
+      }
+      
+      // 3. Commit all changes at once
+      await batch.commit();
 
       if (!mounted) return;
-      Toast.show(context, 'Subject approved successfully!', type: ToastType.success);
+      Toast.show(context, 'Subject approved and activated successfully!', type: ToastType.success);
 
       if (context.canPop()) {
         context.pop();
@@ -147,28 +158,28 @@ class _ReviewSubjectPageState extends State<ReviewSubjectPage> {
     if (widget.subjectId.isEmpty) return;
     setState(() => _isLoading = true);
     try {
-      await FirebaseFirestore.instance
+      final subjectRef = FirebaseFirestore.instance
           .collection('subjects')
-          .doc(widget.subjectId)
-          .update({
-            'status': 'rejected',
-            'admin_rejected_at': FieldValue.serverTimestamp(),
-          });
-
-      final topicsSnapshot = await FirebaseFirestore.instance
-          .collection('subjects')
-          .doc(widget.subjectId)
-          .collection('topics')
-          .get();
-
+          .doc(widget.subjectId);
+      final topicsSnapshot = await subjectRef.collection('topics').get();
       final batch = FirebaseFirestore.instance.batch();
+
+      // 1. Update the subject's status to 'rejected'
+      batch.update(subjectRef, {
+        'status': 'rejected',
+        'admin_rejected_at': FieldValue.serverTimestamp(),
+      });
+      
+      // 2. Reset all topics back to 'generated' for the KP to re-evaluate
       for (final doc in topicsSnapshot.docs) {
         batch.update(doc.reference, {'status': 'generated'});
       }
+
+      // 3. Commit all changes at once
       await batch.commit();
 
       if (!mounted) return;
-      Toast.show(context, 'Subject rejected. Topics reset for KP review.', type: ToastType.success);
+      Toast.show(context, 'Subject rejected. Topics have been reset for KP review.', type: ToastType.info);
 
       if (context.canPop()) {
         context.pop();
@@ -189,8 +200,6 @@ class _ReviewSubjectPageState extends State<ReviewSubjectPage> {
       return AuthenticatedAppLayout(
         role: UserRole.admin,
         appBarTitle: 'Review Subject',
-        bottomNavIndex: _currentIndex,
-        onBottomNavTap: _onNavigate,
         child: const Center(child: Text('No subject specified for review.')),
       );
     }
@@ -198,9 +207,10 @@ class _ReviewSubjectPageState extends State<ReviewSubjectPage> {
     return AuthenticatedAppLayout(
       role: UserRole.admin,
       appBarTitle: 'Review: ${_subjectName ?? 'Loading...'}',
-      bottomNavIndex: _currentIndex,
+      // --- FIX: This page is not a main navigation destination. ---
+      bottomNavIndex: null,
       onBottomNavTap: _onNavigate,
-      showBottomBar: true,
+      showBottomBar: false,
       showCloseButton: true,
       child: FutureBuilder<Map<String, dynamic>>(
         future: _loadSubjectData(),
@@ -481,7 +491,8 @@ class _ReviewSubjectPageState extends State<ReviewSubjectPage> {
 
   Color _getTopicStatusColor(String? status) {
     switch (status) {
-      case 'pending_review': case 'approved': return Colors.green;
+      case 'pending_review': return Colors.blue;
+      case 'approved': return Colors.green;
       case 'rejected': return Colors.red;
       case 'regenerating': return Colors.orange;
       default: return Colors.grey;

@@ -874,6 +874,7 @@ class _UploadContentPageState extends State<UploadContentPage> {
     setState(() => _materialFiles.removeAt(index));
   }
 
+  // --- FIX: Refactored for batch processing and source tracking ---
   Future<void> _generateContent() async {
     if (_materialFiles.isEmpty) {
       Toast.show(
@@ -888,7 +889,7 @@ class _UploadContentPageState extends State<UploadContentPage> {
       _isProcessing = true;
       _currentStep = UploadStep.generating;
       _totalTopics = _generatedTopics.length;
-      _currentTopicIndex = 0;
+      _currentTopicIndex = 0; // Represents total processed topics
       _currentProcessingStep = 'Extracting text from materials...';
       _processingProgress = 0.0;
     });
@@ -902,108 +903,143 @@ class _UploadContentPageState extends State<UploadContentPage> {
           _currentProcessingStep =
               'Extracting text from ${file.name}... (${i + 1}/${_materialFiles.length})';
           _processingProgress =
-              (i / _materialFiles.length) * 0.3; // First 30% for extraction
+              (i / _materialFiles.length) * 0.2; // First 20% for extraction
         });
-
         final text = await _extractTextFromPdf(file);
         allMaterialsText = '$allMaterialsText$text\n\n';
       }
 
-      // NOTE: This simple concatenation might exceed model context limits for very large documents.
-      // A more advanced implementation would use chunking and a RAG (Retrieval-Augmented Generation) pipeline.
       if (allMaterialsText.trim().isEmpty) {
         throw Exception(
           "Could not extract any text from the provided material files.",
         );
       }
 
-      setState(() {
-        _currentProcessingStep = 'Preparing to generate content...';
-        _processingProgress = 0.3;
-      });
-
-      final chunksCollection = FirebaseFirestore.instance.collection(
-        'content_chunks',
-      );
-
-      for (
-        int topicIndex = 0;
-        topicIndex < _generatedTopics.length;
-        topicIndex++
-      ) {
-        final topicDoc = _generatedTopics[topicIndex];
-
-        setState(() {
-          _currentTopicIndex = topicIndex + 1;
-          _currentProcessingStep =
-              'Generating content for: ${topicDoc['title']}';
-          _processingProgress =
-              0.3 +
-              ((topicIndex / _generatedTopics.length) *
-                  0.6); // 30-90% for content generation
-        });
-
-        // Check if content already exists for this topic
+      // Filter topics that still need content generation
+      final topicsToProcess = <DocumentSnapshot>[];
+      for (final topicDoc in _generatedTopics) {
         final existingContent = await FirebaseFirestore.instance
             .collection('content_chunks')
             .where('topic_id', isEqualTo: topicDoc.id)
             .where('subject_id', isEqualTo: widget.subjectId)
+            .limit(1)
             .get();
-
-        if (existingContent.docs.isNotEmpty) {
-          debugPrint('Content already exists for topic: ${topicDoc['title']}, skipping...');
+        if (existingContent.docs.isEmpty) {
+          topicsToProcess.add(topicDoc);
+        } else {
+          // Update progress for skipped topics
           if (mounted) {
             setState(() {
-              _currentTopicIndex = topicIndex + 1;
+              _currentTopicIndex++;
               _currentProcessingStep = 'Skipping generated: ${topicDoc['title']}';
               _processingProgress =
-                  0.3 +
-                  ((topicIndex / _generatedTopics.length) *
-                      0.6); // 30-90% for content generation
+                  0.2 + ((_currentTopicIndex / _totalTopics) * 0.75);
             });
-            await Future.delayed(const Duration(milliseconds: 100));
+            await Future.delayed(const Duration(milliseconds: 50));
           }
-          continue;
         }
+      }
 
-        const systemPrompt =
-            'You are a helpful teaching assistant. Based *only* on the provided context, generate two distinct, detailed content chunks for the given topic. Each chunk must have a "title" and "content" (at least 40 words). Output must be a valid JSON array of two objects.';
-        final prompt =
-            '$systemPrompt\n\nTopic: "${topicDoc['title']}"\n\nContext: "$allMaterialsText"';
+      if (topicsToProcess.isEmpty) {
+        if (mounted) {
+          Toast.show(context, 'All content has already been generated.',
+              type: ToastType.info);
+        }
+      } else {
+        // Batch processing logic
+        const batchSize = 5; // Process 5 topics per AI request
+        for (int i = 0; i < topicsToProcess.length; i += batchSize) {
+          final batchTopics = topicsToProcess.sublist(
+              i,
+              i + batchSize > topicsToProcess.length
+                  ? topicsToProcess.length
+                  : i + batchSize);
+          final topicTitles =
+              batchTopics.map((doc) => doc['title'] as String).toList();
 
-        final String response = await AIService.instance.generateContent(
-          prompt,
-        );
-        final List<dynamic> chunksFromAI = jsonDecode(response);
+          final batchNumber = (i / batchSize).floor() + 1;
+          final totalBatches = (topicsToProcess.length / batchSize).ceil();
 
-        // Store content chunks immediately for this topic
-        final topicBatch = FirebaseFirestore.instance.batch();
-        for (int i = 0; i < chunksFromAI.length; i++) {
-          final chunkRef = chunksCollection.doc();
-          topicBatch.set(chunkRef, {
-            'title': chunksFromAI[i]['title'],
-            'content': chunksFromAI[i]['content'],
-            'order': i + 1,
-            'topic_id': topicDoc.id,
-            'subject_id': widget.subjectId,
-            'createdAt': FieldValue.serverTimestamp(),
+          setState(() {
+            _currentProcessingStep =
+                'Processing batch $batchNumber of $totalBatches...';
           });
-        }
 
-        // Commit immediately for this topic
-        await topicBatch.commit();
-        debugPrint('Successfully stored content for topic: ${topicDoc['title']}');
+          // Updated prompt for batching
+          const systemPrompt = '''
+          You are a helpful teaching assistant. Based ONLY on the provided context, generate content for the list of topics provided.
+          For EACH topic in the list, you must create exactly two distinct, detailed content chunks.
+          Each chunk must have a "title" and "content" (at least 40 words).
 
-        // Update topic status to completed
-        await FirebaseFirestore.instance
-            .collection('subjects')
-            .doc(widget.subjectId)
-            .collection('topics')
-            .doc(topicDoc.id)
-            .update({
+          OUTPUT FORMAT:
+          Your output must be a valid JSON array where each object corresponds to a topic from the input. Maintain the original order.
+          The structure for each object in the array must be:
+          {
+            "topic_title": "The exact title of the topic from the input list",
+            "content_chunks": [
+              {"title": "Chunk 1 Title", "content": "Chunk 1 content..."},
+              {"title": "Chunk 2 Title", "content": "Chunk 2 content..."}
+            ]
+          }
+          ''';
+
+          final prompt =
+              '$systemPrompt\n\nTopics to process:\n${jsonEncode(topicTitles)}\n\nContext: "$allMaterialsText"';
+
+          final String response =
+              await AIService.instance.generateContent(prompt);
+          final List<dynamic> aiResponse = jsonDecode(response);
+
+          final firestoreBatch = FirebaseFirestore.instance.batch();
+          final chunksCollection =
+              FirebaseFirestore.instance.collection('content_chunks');
+          final sourceFileNames = _materialFiles.map((f) => f.name).toList();
+
+          for (var topicData in aiResponse) {
+            final topicTitle = topicData['topic_title'];
+            final contentChunks = topicData['content_chunks'] as List<dynamic>;
+
+            final originalTopicDoc = batchTopics.firstWhere(
+              (doc) => doc['title'] == topicTitle,
+              orElse: () => throw Exception(
+                  'AI response topic "$topicTitle" not found in original batch.'),
+            );
+
+            for (int j = 0; j < contentChunks.length; j++) {
+              final chunkRef = chunksCollection.doc();
+              firestoreBatch.set(chunkRef, {
+                'title': contentChunks[j]['title'],
+                'content': contentChunks[j]['content'],
+                'order': j + 1,
+                'topic_id': originalTopicDoc.id,
+                'subject_id': widget.subjectId,
+                'source_files': sourceFileNames, // Track source files
+                'createdAt': FieldValue.serverTimestamp(),
+              });
+            }
+
+            // Mark topic as completed
+            final topicRef = FirebaseFirestore.instance
+                .collection('subjects')
+                .doc(widget.subjectId)
+                .collection('topics')
+                .doc(originalTopicDoc.id);
+            firestoreBatch.update(topicRef, {
               'content_generated': true,
               'content_generated_at': FieldValue.serverTimestamp(),
             });
+
+            if (mounted) {
+              setState(() {
+                _currentTopicIndex++;
+                _currentProcessingStep = 'Generated: $topicTitle';
+                _processingProgress =
+                    0.2 + ((_currentTopicIndex / _totalTopics) * 0.75);
+              });
+            }
+          }
+          await firestoreBatch.commit();
+        }
       }
 
       setState(() {
@@ -1016,10 +1052,10 @@ class _UploadContentPageState extends State<UploadContentPage> {
           .collection('subjects')
           .doc(widget.subjectId)
           .update({
-            'hasMaterial': true,
-            'hasContent': true,
-            'content_generation_completed_at': FieldValue.serverTimestamp(),
-          });
+        'hasMaterial': true,
+        'hasContent': true,
+        'content_generation_completed_at': FieldValue.serverTimestamp(),
+      });
 
       if (mounted) {
         setState(() {
@@ -1033,9 +1069,7 @@ class _UploadContentPageState extends State<UploadContentPage> {
           type: ToastType.success,
         );
 
-        // Small delay to show completion
         await Future.delayed(const Duration(milliseconds: 1000));
-
         setState(() => _currentStep = UploadStep.done);
       }
     } catch (e) {

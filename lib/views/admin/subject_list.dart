@@ -1,11 +1,12 @@
 import 'package:auralearn/components/authenticated_app_layout.dart';
 import 'package:auralearn/components/skeleton_loader.dart';
+import 'package:auralearn/models/subject_model.dart';
+import 'package:auralearn/services/firestore_cache_service.dart';
 import 'package:auralearn/utils/page_transitions.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:go_router/go_router.dart';
-import '../../components/bottom_bar.dart';
+import '../../enums/user_role.dart';
 
 class SubjectListScreen extends StatefulWidget {
   const SubjectListScreen({super.key});
@@ -14,19 +15,18 @@ class SubjectListScreen extends StatefulWidget {
   State<SubjectListScreen> createState() => _SubjectListScreenState();
 }
 
-class _SubjectListScreenState extends State<SubjectListScreen> with TickerProviderStateMixin {
+class _SubjectListScreenState extends State<SubjectListScreen>
+    with TickerProviderStateMixin {
   int _currentIndex = 2; // Subject list is at index 2
-  late Stream<QuerySnapshot> _subjectsStream;
+  late final Stream<List<Subject>> _subjectsStream;
   late final AnimationController _pageController;
+  final FirestoreCacheService _firestoreCache = FirestoreCacheService();
   String? _expandedSubjectId;
 
   @override
   void initState() {
     super.initState();
-    _subjectsStream = FirebaseFirestore.instance
-        .collection('subjects')
-        .orderBy('createdAt', descending: true)
-        .snapshots();
+    _subjectsStream = _firestoreCache.getSubjectsStream();
     _pageController = PageTransitions.createStandardController(vsync: this);
     _pageController.forward();
   }
@@ -39,11 +39,7 @@ class _SubjectListScreenState extends State<SubjectListScreen> with TickerProvid
 
   void _onNavigate(int index) {
     if (index == _currentIndex) return;
-
-    setState(() {
-      _currentIndex = index;
-    });
-
+    setState(() => _currentIndex = index);
     switch (index) {
       case 0:
         context.go('/admin/dashboard');
@@ -52,7 +48,6 @@ class _SubjectListScreenState extends State<SubjectListScreen> with TickerProvid
         context.go('/admin/users');
         break;
       case 2:
-        // Already on subjects screen
         break;
     }
   }
@@ -73,81 +68,75 @@ class _SubjectListScreenState extends State<SubjectListScreen> with TickerProvid
       ],
       child: PageTransitions.buildSubtlePageTransition(
         controller: _pageController,
-        child: StreamBuilder<QuerySnapshot>(
-        stream: _subjectsStream,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return _buildLoadingSkeleton();
-          }
+        child: StreamBuilder<List<Subject>>(
+          stream: _subjectsStream,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return _buildLoadingSkeleton();
+            }
 
-          if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Error loading subjects',
-                    style: TextStyle(color: Colors.red[300], fontSize: 18),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    snapshot.error.toString(),
-                    style: const TextStyle(color: Colors.white70),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+            if (snapshot.hasError) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Error loading subjects',
+                      style: TextStyle(color: Colors.red[300], fontSize: 18),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      snapshot.error.toString(),
+                      style: const TextStyle(color: Colors.white70),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            final subjects = snapshot.data ?? [];
+
+            if (subjects.isEmpty) {
+              return _buildEmptyState();
+            }
+
+            return AnimationLimiter(
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: subjects.length,
+                itemBuilder: (context, index) {
+                  final subject = subjects[index];
+                  return AnimationConfiguration.staggeredList(
+                    position: index,
+                    duration: const Duration(milliseconds: 200),
+                    child: SlideAnimation(
+                      verticalOffset: 15.0,
+                      child: FadeInAnimation(
+                        child: _buildSubjectCard(subject),
+                      ),
+                    ),
+                  );
+                },
               ),
             );
-          }
-
-          final subjects = snapshot.data?.docs ?? [];
-
-          if (subjects.isEmpty) {
-            return _buildEmptyState();
-          }
-
-          return AnimationLimiter(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: subjects.length,
-              itemBuilder: (context, index) {
-                final subject = subjects[index];
-                final data = subject.data() as Map<String, dynamic>;
-
-                return AnimationConfiguration.staggeredList(
-                  position: index,
-                  duration: const Duration(milliseconds: 200),
-                  child: SlideAnimation(
-                    verticalOffset: 15.0,
-                    child: FadeInAnimation(
-                      child: _buildSubjectCard(subject.id, data),
-                    ),
-                  ),
-                );
-              },
-            ),
-          );
-        },
-      ),
+          },
+        ),
       ),
     );
   }
 
-  Widget _buildSubjectCard(String subjectId, Map<String, dynamic> data) {
-    final String name = data['name'] ?? 'Unnamed Subject';
-    final String description = data['description'] ?? 'No description';
-    final bool isActive = data['isActive'] ?? false;
-    final Timestamp? createdAt = data['createdAt'];
-    final bool isExpanded = _expandedSubjectId == subjectId;
+  Widget _buildSubjectCard(Subject subject) {
+    final bool isExpanded = _expandedSubjectId == subject.id;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       child: Card(
         child: InkWell(
           onTap: () => setState(() {
-            _expandedSubjectId = isExpanded ? null : subjectId;
+            _expandedSubjectId = isExpanded ? null : subject.id;
           }),
           borderRadius: BorderRadius.circular(16),
           child: Padding(
@@ -158,18 +147,13 @@ class _SubjectListScreenState extends State<SubjectListScreen> with TickerProvid
                 Row(
                   children: [
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            name,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
+                      child: Text(
+                        subject.name,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                     Row(
@@ -177,23 +161,19 @@ class _SubjectListScreenState extends State<SubjectListScreen> with TickerProvid
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
+                              horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: isActive
-                                ? Colors.green.withValues(alpha: 0.2)
-                                : Colors.red.withValues(alpha: 0.2),
+                            color: subject.isActive
+                                ? Colors.green.withAlpha(30)
+                                : Colors.red.withAlpha(30),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: isActive ? Colors.green : Colors.red,
-                              width: 1,
-                            ),
+                                color: subject.isActive ? Colors.green : Colors.red),
                           ),
                           child: Text(
-                            isActive ? 'Active' : 'Inactive',
+                            subject.isActive ? 'Active' : 'Inactive',
                             style: TextStyle(
-                              color: isActive ? Colors.green : Colors.red,
+                              color: subject.isActive ? Colors.green : Colors.red,
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
                             ),
@@ -201,24 +181,15 @@ class _SubjectListScreenState extends State<SubjectListScreen> with TickerProvid
                         ),
                         const SizedBox(width: 8),
                         IconButton(
-                          icon: const Icon(
-                            Icons.edit,
-                            size: 20,
-                            color: Colors.white70,
-                          ),
+                          icon: const Icon(Icons.edit, size: 20, color: Colors.white70),
                           onPressed: () {
                             context.pushNamed(
                               'admin-edit-subject',
-                              pathParameters: {'subjectId': subjectId},
-                              extra: data,
+                              pathParameters: {'subjectId': subject.id},
+                              extra: subject, // Pass the typed Subject object
                             );
                           },
                           tooltip: 'Edit Subject',
-                          constraints: const BoxConstraints(
-                            minWidth: 32,
-                            minHeight: 32,
-                          ),
-                          padding: const EdgeInsets.all(4),
                         ),
                       ],
                     ),
@@ -226,62 +197,26 @@ class _SubjectListScreenState extends State<SubjectListScreen> with TickerProvid
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  description,
+                  subject.description,
                   style: const TextStyle(color: Colors.white70, fontSize: 14),
                   maxLines: isExpanded ? null : 2,
                   overflow: isExpanded ? null : TextOverflow.ellipsis,
                 ),
                 if (isExpanded) ...[
                   const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      children: [
-                        if (createdAt != null)
-                          _buildDetailRow(
-                            'Created',
-                            _formatDate(createdAt.toDate()),
-                          ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: () => _navigateToReview(subjectId),
-                                icon: const Icon(Icons.rate_review, size: 16),
-                                label: const Text('Review Content'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.purple.withValues(alpha: 0.2),
-                                  foregroundColor: Colors.purple,
-                                  side: BorderSide(color: Colors.purple),
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ] else ...[
+                  if (subject.createdAt != null)
+                    _buildDetailRow('Created', _formatDate(subject.createdAt!.toDate())),
+                  _buildDetailRow('Status', subject.status ?? 'Not Started'),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      const Spacer(),
-                      Text(
-                        'Tap to expand',
-                        style: const TextStyle(
-                          color: Colors.white54,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _navigateToReview(subject.id),
+                      icon: const Icon(Icons.rate_review, size: 16),
+                      label: const Text('Review Content'),
+                    ),
                   ),
-                ],
+                ]
               ],
             ),
           ),
@@ -392,10 +327,9 @@ class _SubjectListScreenState extends State<SubjectListScreen> with TickerProvid
     return '${date.day}/${date.month}/${date.year}';
   }
 
-  void _navigateToReview(String subjectId) {
+ void _navigateToReview(String subjectId) {
     debugPrint('Navigating to review with subjectId: $subjectId');
-    final route = '/admin/review-subject?subjectId=$subjectId';
-    debugPrint('Full route: $route');
-    GoRouter.of(context).go(route);
+    // --- FIX: Use named route with path parameters for type-safe navigation ---
+    context.goNamed('admin-review-subject', pathParameters: {'subjectId': subjectId});
   }
 }

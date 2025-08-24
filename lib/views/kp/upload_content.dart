@@ -5,7 +5,6 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:auralearn/components/authenticated_app_layout.dart';
-import 'package:auralearn/components/bottom_bar.dart';
 import 'package:auralearn/services/ai_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -14,6 +13,8 @@ import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:auralearn/components/toast.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
+
+import '../../enums/user_role.dart';
 
 // Enum to manage the UI state of the multi-step process
 enum UploadStep { syllabus, materials, generating, done }

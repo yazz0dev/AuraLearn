@@ -1,13 +1,17 @@
 import 'package:firebase_ai/firebase_ai.dart';
 import 'package:flutter/foundation.dart';
+import 'cache_service.dart';
 
-/// A singleton service to interact with the Firebase AI (Gemini) models.
+/// A singleton service to interact with the Firebase AI (Gemini) models with caching.
 class AIService {
   // Private constructor
   AIService._();
 
   // Singleton instance
   static final AIService instance = AIService._();
+  
+  // Cache service for AI responses
+  final CacheService _cache = CacheService();
 
   // Initialize the Google AI model using the Firebase SDK
   // This securely calls the Gemini API through a Firebase proxy.
@@ -38,15 +42,36 @@ class AIService {
     return cleaned.trim();
   }
 
-  /// Generates content by calling the Gemini API directly from the client
+  /// Generates content by calling the Gemini API with caching support
   /// via the secure Firebase AI SDK.
   ///
   /// Returns the generated text or an error message if it fails.
-  Future<String> generateContent(String prompt) async {
-    return _generateContentWithRetry(
+  Future<String> generateContent(String prompt, {bool useCache = true}) async {
+    // Create cache key from prompt hash
+    final promptHash = prompt.hashCode.toString();
+    final cacheKey = 'ai_content_$promptHash';
+    
+    // Check cache first if enabled
+    if (useCache) {
+      final cached = await _cache.get<String>(cacheKey, ttl: const Duration(hours: 24));
+      if (cached != null) {
+        debugPrint('AI Cache HIT for prompt hash: $promptHash');
+        return cached;
+      }
+    }
+
+    final result = await _generateContentWithRetry(
       () => _model.generateContent([Content.text(prompt)]),
       prompt,
     );
+    
+    // Cache successful results
+    if (useCache && !result.startsWith('Failed') && !result.startsWith('Network') && !result.startsWith('An error')) {
+      await _cache.set(cacheKey, result, ttl: const Duration(hours: 24));
+      debugPrint('AI response cached for prompt hash: $promptHash');
+    }
+    
+    return result;
   }
 
   /// Internal method to handle content generation with retry logic
@@ -128,19 +153,34 @@ class AIService {
     return 'Failed to generate content after $maxRetries attempts. Please check your connection and try again.';
   }
 
-  /// Generates content with PDF file directly uploaded to AI
+  /// Generates content with PDF file directly uploaded to AI with caching
   /// via the secure Firebase AI SDK.
   ///
   /// Returns the generated text or an error message if it fails.
   Future<String> generateContentWithPdf(
     String prompt,
     Uint8List pdfBytes,
-    String mimeType,
-  ) async {
+    String mimeType, {
+    bool useCache = true,
+  }) async {
     debugPrint("📄 Starting PDF analysis:");
     debugPrint("📄 PDF size: ${(pdfBytes.length / 1024 / 1024).toStringAsFixed(2)} MB");
     debugPrint("📄 MIME type: $mimeType");
     debugPrint("📄 Prompt type: Syllabus analysis");
+
+    // Create cache key from prompt and PDF hash
+    final pdfHash = pdfBytes.hashCode.toString();
+    final promptHash = prompt.hashCode.toString();
+    final cacheKey = 'ai_pdf_${promptHash}_$pdfHash';
+    
+    // Check cache first if enabled
+    if (useCache) {
+      final cached = await _cache.get<String>(cacheKey, ttl: const Duration(days: 7));
+      if (cached != null) {
+        debugPrint('AI PDF Cache HIT for hashes: $promptHash, $pdfHash');
+        return cached;
+      }
+    }
 
     // Validate PDF size (Firebase AI has limits)
     const maxSizeBytes = 20 * 1024 * 1024; // 20MB limit for Firebase AI
@@ -162,6 +202,13 @@ class AIService {
       );
 
       debugPrint("📄 PDF analysis completed successfully");
+      
+      // Cache successful PDF analysis results (longer TTL since PDFs don't change often)
+      if (useCache && !result.startsWith('Failed') && !result.startsWith('Network') && !result.startsWith('An error')) {
+        await _cache.set(cacheKey, result, ttl: const Duration(days: 7));
+        debugPrint('AI PDF response cached for hashes: $promptHash, $pdfHash');
+      }
+      
       return result;
     } catch (e) {
       debugPrint("❌ PDF processing failed: $e");
@@ -179,5 +226,34 @@ class AIService {
       // Fall back to generic error handling
       rethrow;
     }
+  }
+
+  /// Clear AI response cache
+  Future<void> clearCache() async {
+    // Get all cache keys and remove AI-related ones
+    final stats = _cache.getCacheStats();
+    final keys = stats['memory_cache_keys'] as List<String>;
+    
+    for (final key in keys) {
+      if (key.startsWith('ai_content_') || key.startsWith('ai_pdf_')) {
+        await _cache.remove(key);
+      }
+    }
+    
+    debugPrint('AI cache cleared');
+  }
+
+  /// Get cache statistics for AI responses
+  Map<String, dynamic> getCacheStats() {
+    final stats = _cache.getCacheStats();
+    final keys = stats['memory_cache_keys'] as List<String>;
+    
+    final aiKeys = keys.where((key) => 
+      key.startsWith('ai_content_') || key.startsWith('ai_pdf_')).toList();
+    
+    return {
+      'total_ai_cached_responses': aiKeys.length,
+      'ai_cache_keys': aiKeys,
+    };
   }
 }

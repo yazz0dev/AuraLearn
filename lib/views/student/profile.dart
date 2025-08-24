@@ -7,8 +7,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../components/authenticated_app_layout.dart';
 import '../../components/toast.dart';
-import '../../components/bottom_bar.dart';
 import '../../components/time_range_picker.dart';
+import '../../enums/user_role.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});

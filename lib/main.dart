@@ -1,4 +1,6 @@
 import 'package:auralearn/router.dart';
+import 'package:auralearn/services/cache_service.dart';
+import 'package:auralearn/services/cache_preloader.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -16,11 +18,20 @@ void main() async {
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
+  // Initialize cache service
+  await CacheService().initialize();
+
+  // Start background preloading after a short delay
+  CachePreloader().preloadInBackground();
+
   // Disable App Check to avoid provider errors in development
   await FirebaseAppCheck.instance.setTokenAutoRefreshEnabled(false);
 
-  // Optional: Add graphics optimization for Android
-  PaintingBinding.instance.imageCache.maximumSizeBytes = 512 * 1024 * 1024; // 512MB
+  // Optimize image cache for mobile performance
+  // Reduce cache size to prevent memory pressure on mobile devices
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 50 * 1024 * 1024; // 50MB
+  // Clear cache periodically to prevent memory buildup
+  PaintingBinding.instance.imageCache.clear();
 
   runApp(const AuraLearnApp());
 }
@@ -40,11 +51,11 @@ class AuraLearnApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFF0F172A),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: Colors.white.withAlpha(26),
+          fillColor: const Color(0xFF1E293B), // Solid color instead of alpha
           floatingLabelBehavior: FloatingLabelBehavior.auto,
-          labelStyle: TextStyle(color: Colors.white.withAlpha(179)),
-          floatingLabelStyle: TextStyle(
-            color: Colors.white.withAlpha(200),
+          labelStyle: const TextStyle(color: Color(0xFFB3B3B3)), // Solid color
+          floatingLabelStyle: const TextStyle(
+            color: Color(0xFFCCCCCC), // Solid color
             fontSize: 14,
           ),
           border: OutlineInputBorder(
@@ -53,8 +64,8 @@ class AuraLearnApp extends StatelessWidget {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: const Color(0xFF3B82F6).withAlpha(150),
+            borderSide: const BorderSide(
+              color: Color(0xFF3B82F6), // Solid color
               width: 1.5,
             ),
           ),
@@ -62,7 +73,7 @@ class AuraLearnApp extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,
           ),
-          prefixIconColor: Colors.white.withAlpha(179),
+          prefixIconColor: const Color(0xFFB3B3B3), // Solid color
           contentPadding: const EdgeInsets.symmetric(
             vertical: 16.0,
             horizontal: 16.0,
@@ -82,17 +93,17 @@ class AuraLearnApp extends StatelessWidget {
             ),
           ),
         ),
-        sliderTheme: SliderThemeData(
-          activeTrackColor: const Color(0xFF3B82F6),
-          inactiveTrackColor: Colors.white.withAlpha(51),
+        sliderTheme: const SliderThemeData(
+          activeTrackColor: Color(0xFF3B82F6),
+          inactiveTrackColor: Color(0xFF334155), // Solid color instead of alpha
           thumbColor: Colors.white,
-          overlayColor: const Color(0xFF3B82F6).withAlpha(50),
-          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8.0),
-          overlayShape: const RoundSliderOverlayShape(overlayRadius: 16.0),
+          overlayColor: Color(0x403B82F6), // Reduced alpha overlay
+          thumbShape: RoundSliderThumbShape(enabledThumbRadius: 8.0),
+          overlayShape: RoundSliderOverlayShape(overlayRadius: 16.0),
           trackHeight: 4.0,
         ),
         chipTheme: ChipThemeData(
-          backgroundColor: Colors.white.withAlpha(26),
+          backgroundColor: const Color(0xFF1E293B), // Solid color instead of alpha
           disabledColor: Colors.grey.shade800,
           selectedColor: const Color(0xFF3B82F6),
           secondarySelectedColor: Colors.lightBlue,
@@ -102,7 +113,7 @@ class AuraLearnApp extends StatelessWidget {
             side: BorderSide.none,
           ),
           labelStyle: const TextStyle(
-            color: Colors.white70,
+            color: Color(0xFFB3B3B3), // Solid color
             fontWeight: FontWeight.w500,
           ),
           secondaryLabelStyle: const TextStyle(color: Colors.white),

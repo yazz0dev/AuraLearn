@@ -1,10 +1,11 @@
 import 'package:auralearn/components/authenticated_app_layout.dart';
-import 'package:auralearn/components/bottom_bar.dart';
 import 'package:auralearn/components/skeleton_loader.dart';
 import 'package:auralearn/services/user_data_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../enums/user_role.dart';
 
 class StudentDashboard extends StatefulWidget {
   const StudentDashboard({super.key});
@@ -13,7 +14,9 @@ class StudentDashboard extends StatefulWidget {
   State<StudentDashboard> createState() => _StudentDashboardState();
 }
 
-class _StudentDashboardState extends State<StudentDashboard> with SingleTickerProviderStateMixin {
+class _StudentDashboardState extends State<StudentDashboard>
+    // --- FIX: Use SingleTickerProviderStateMixin for one AnimationController ---
+    with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
   late AnimationController _animationController;
 

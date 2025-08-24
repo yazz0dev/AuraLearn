@@ -1,64 +1,91 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'firestore_cache_service.dart';
+import 'cache_service.dart';
 
-/// Service to manage user data with caching
+/// Enhanced service to manage user data with comprehensive caching
 class UserDataService {
   static final UserDataService _instance = UserDataService._internal();
   factory UserDataService() => _instance;
   UserDataService._internal();
 
-  Map<String, dynamic>? _cachedUserData;
-  String? _cachedUserId;
-  DateTime? _lastFetchTime;
+  final FirestoreCacheService _firestoreCache = FirestoreCacheService();
+  final CacheService _cache = CacheService();
   Stream<DocumentSnapshot>? _userStream;
+  String? _currentUserId;
 
-  /// Get user data with caching
-  Future<Map<String, dynamic>?> getUserData() async {
+  /// Get user data with enhanced caching
+  Future<Map<String, dynamic>?> getUserData({bool forceRefresh = false}) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      _clearCache();
+      await _clearCache();
       return null;
     }
 
-    // If we have cached data for the same user and it's less than 5 minutes old, use it
-    if (_cachedUserId == user.uid &&
-        _cachedUserData != null &&
-        _lastFetchTime != null &&
-        DateTime.now().difference(_lastFetchTime!) < const Duration(minutes: 5)) {
-      return _cachedUserData;
-    }
+    _currentUserId = user.uid;
 
     try {
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-
-      if (userDoc.exists && userDoc.data() != null) {
-        _cachedUserData = userDoc.data()!;
-        _cachedUserId = user.uid;
-        _lastFetchTime = DateTime.now();
-        return _cachedUserData;
-      }
+      return await _firestoreCache.getUserData(user.uid, forceRefresh: forceRefresh);
     } catch (e) {
       debugPrint('Error fetching user data: $e');
+      return null;
     }
-
-    _clearCache();
-    return null;
   }
 
   /// Get user name from cached data or fetch if needed
-  Future<String> getUserName() async {
-    final userData = await getUserData();
-    return userData?['name'] ?? 'Student';
+  Future<String> getUserName({bool forceRefresh = false}) async {
+    final userData = await getUserData(forceRefresh: forceRefresh);
+    return userData?['name'] ?? 'User';
   }
 
   /// Get user role from cached data or fetch if needed
-  Future<String?> getUserRole() async {
-    final userData = await getUserData();
+  Future<String?> getUserRole({bool forceRefresh = false}) async {
+    final userData = await getUserData(forceRefresh: forceRefresh);
     return userData?['role'];
+  }
+
+  /// Get user email from cached data or fetch if needed
+  Future<String?> getUserEmail({bool forceRefresh = false}) async {
+    final userData = await getUserData(forceRefresh: forceRefresh);
+    return userData?['email'];
+  }
+
+  /// Get user profile data for profile page
+  Future<Map<String, dynamic>?> getUserProfile({bool forceRefresh = false}) async {
+    final userData = await getUserData(forceRefresh: forceRefresh);
+    if (userData == null) return null;
+
+    return {
+      'name': userData['name'] ?? 'User',
+      'email': userData['email'] ?? '',
+      'role': userData['role'] ?? '',
+      'createdAt': userData['createdAt'],
+      'lastLogin': userData['lastLogin'],
+      'profilePicture': userData['profilePicture'],
+    };
+  }
+
+  /// Update user data and refresh cache
+  Future<bool> updateUserData(Map<String, dynamic> updates) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+
+    try {
+      // Update in Firestore
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .update(updates);
+
+      // Invalidate cache to force refresh on next access
+      await _cache.invalidateUserCache(user.uid);
+      
+      return true;
+    } catch (e) {
+      debugPrint('Error updating user data: $e');
+      return false;
+    }
   }
 
   /// Get a stream of user data for real-time updates
@@ -68,27 +95,87 @@ class UserDataService {
       return Stream.empty();
     }
 
-    if (_userStream == null || _cachedUserId != user.uid) {
-      _cachedUserId = user.uid;
-      _userStream = FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .snapshots();
+    if (_userStream == null || _currentUserId != user.uid) {
+      _currentUserId = user.uid;
+      _userStream = _firestoreCache.getDocumentStream('users', user.uid);
     }
 
     return _userStream!;
   }
 
+  /// Check if user has completed profile setup
+  Future<bool> isProfileComplete({bool forceRefresh = false}) async {
+    final userData = await getUserData(forceRefresh: forceRefresh);
+    if (userData == null) return false;
+
+    final requiredFields = ['name', 'email', 'role'];
+    return requiredFields.every((field) => 
+      userData.containsKey(field) && 
+      userData[field] != null && 
+      userData[field].toString().isNotEmpty
+    );
+  }
+
+  /// Get user statistics (for admin dashboard)
+  Future<Map<String, dynamic>?> getUserStats(String userId, {bool forceRefresh = false}) async {
+    final cacheKey = 'user_stats_$userId';
+    
+    if (!forceRefresh) {
+      final cached = await _cache.get<Map<String, dynamic>>(cacheKey);
+      if (cached != null) return cached;
+    }
+
+    try {
+      final userData = await getUserData(forceRefresh: forceRefresh);
+      if (userData == null) return null;
+
+      final stats = {
+        'totalLogins': userData['totalLogins'] ?? 0,
+        'lastLogin': userData['lastLogin'],
+        'accountCreated': userData['createdAt'],
+        'role': userData['role'],
+        'isActive': userData['isActive'] ?? true,
+      };
+
+      await _cache.set(cacheKey, stats, ttl: const Duration(hours: 1));
+      return stats;
+    } catch (e) {
+      debugPrint('Error fetching user stats: $e');
+      return null;
+    }
+  }
+
   /// Clear the cached user data
-  void _clearCache() {
-    _cachedUserData = null;
-    _cachedUserId = null;
-    _lastFetchTime = null;
+  Future<void> _clearCache() async {
+    if (_currentUserId != null) {
+      await _cache.invalidateUserCache(_currentUserId!);
+    }
     _userStream = null;
+    _currentUserId = null;
   }
 
   /// Invalidate cache when user logs out
-  void invalidateCache() {
-    _clearCache();
+  Future<void> invalidateCache() async {
+    await _clearCache();
+  }
+
+  /// Refresh user data cache
+  Future<void> refreshCache() async {
+    if (_currentUserId != null) {
+      await getUserData(forceRefresh: true);
+    }
+  }
+
+  /// Preload user data for better performance
+  Future<void> preloadUserData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      // Preload in background without waiting
+      getUserData().then((_) {
+        debugPrint('User data preloaded for ${user.uid}');
+      }).catchError((e) {
+        debugPrint('Error preloading user data: $e');
+      });
+    }
   }
 }

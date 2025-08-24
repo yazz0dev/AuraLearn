@@ -8,7 +8,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:go_router/go_router.dart';
-import '../../components/bottom_bar.dart';
+import 'dart:async';
+import '../../enums/user_role.dart';
 
 class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({super.key});
@@ -23,19 +24,28 @@ class _UserManagementScreenState extends State<UserManagementScreen>
   String _search = '';
   String _selectedRole = 'All';
   final List<String> _roles = ['All', 'KP', 'Student', 'Admin'];
+  String? _expandedUserId; // Track which user is expanded
+  Timer? _searchDebounceTimer; // Timer for search debouncing
+  String _debouncedSearch = ''; // Debounced search value for filtering
 
   late final AnimationController _pageController;
+  late final Map<String, AnimationController> _expansionControllers;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageTransitions.createStandardController(vsync: this);
+    _expansionControllers = {};
     _pageController.forward();
   }
 
   @override
-  dispose() {
+  void dispose() {
     _pageController.dispose();
+    _searchDebounceTimer?.cancel();
+    for (final controller in _expansionControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -58,6 +68,38 @@ class _UserManagementScreenState extends State<UserManagementScreen>
         // Navigate to subjects screen
         context.go('/admin/subjects');
         break;
+    }
+  }
+
+  AnimationController _getExpansionController(String userId) {
+    if (!_expansionControllers.containsKey(userId)) {
+      _expansionControllers[userId] = AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 300),
+      );
+    }
+    return _expansionControllers[userId]!;
+  }
+
+  void _toggleUserExpansion(String userId) {
+    if (_expandedUserId == userId) {
+      // Collapse current user - don't setState here, let animation finish first
+      _getExpansionController(userId).reverse();
+      // Set state after animation completes to prevent unwanted rebuilds
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted && _expandedUserId == userId) {
+          setState(() => _expandedUserId = null);
+        }
+      });
+    } else {
+      // Collapse previously expanded user if any
+      if (_expandedUserId != null) {
+        _getExpansionController(_expandedUserId!).reverse();
+      }
+
+      // Expand new user immediately
+      setState(() => _expandedUserId = userId);
+      _getExpansionController(userId).forward();
     }
   }
 
@@ -94,11 +136,11 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                   color: const Color(0xFF1E1E1E),
                   borderRadius: BorderRadius.circular(isSmallScreen ? 20 : 24),
                   border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.1),
+                    color: Colors.white.withAlpha(13),
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
+                      color: Colors.black.withAlpha(77),
                       blurRadius: 20,
                       offset: const Offset(0, 8),
                     ),
@@ -124,7 +166,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                                         Container(
                                           padding: const EdgeInsets.all(10),
                                           decoration: BoxDecoration(
-                                            color: Colors.blue.withValues(alpha: 0.1),
+                                            color: Colors.blue.withAlpha(26),
                                             borderRadius: BorderRadius.circular(10),
                                           ),
                                           child: const Icon(
@@ -140,7 +182,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                                             color: Colors.white70,
                                           ),
                                           style: IconButton.styleFrom(
-                                            backgroundColor: Colors.white.withValues(alpha: 0.1),
+                                            backgroundColor: Colors.white.withAlpha(26),
                                             shape: RoundedRectangleBorder(
                                               borderRadius: BorderRadius.circular(8),
                                             ),
@@ -164,7 +206,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: Colors.blue.withValues(alpha: 0.1),
+                                color: Colors.blue.withAlpha(26),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Icon(
@@ -191,7 +233,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                                 color: Colors.white70,
                               ),
                               style: IconButton.styleFrom(
-                                        backgroundColor: Colors.white.withValues(alpha: 0.1),
+                                        backgroundColor: Colors.white.withAlpha(26),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
                                 ),
@@ -405,6 +447,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                                                         .trim(),
                                                     role: isKP ? 'KP' : 'Admin',
                                                   );
+                                                  if (!mounted) return;
                                                   setDialogState(
                                                     () => isLoading = false,
                                                   );
@@ -449,7 +492,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                                         style: OutlinedButton.styleFrom(
                                           foregroundColor: Colors.white70,
                                           side: BorderSide(
-                                            color: Colors.white.withValues(alpha: 0.2),
+                                            color: Colors.white.withAlpha(51),
                                           ),
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(10),
@@ -479,7 +522,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: Colors.white70,
                                   side: BorderSide(
-                                    color: Colors.white.withValues(alpha: 0.2),
+                                    color: Colors.white.withAlpha(51),
                                   ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
@@ -488,7 +531,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                                     vertical: 16,
                                   ),
                                 ),
-                                        child: Text(
+                                child: Text(
                                   'Cancel',
                                   style: TextStyle(
                                     fontSize: 16,
@@ -514,6 +557,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                                                 .trim(),
                                             role: isKP ? 'KP' : 'Admin',
                                           );
+                                          if (!mounted) return;
                                           setDialogState(
                                             () => isLoading = false,
                                           );
@@ -598,30 +642,27 @@ class _UserManagementScreenState extends State<UserManagementScreen>
       // Delete the temporary app
       await tempApp.delete();
 
-      if (mounted) {
-        context.pop(); // Close dialog on success
-        Toast.show(
-          context,
-          'User created successfully!',
-          type: ToastType.success,
-        );
-      }
+      if (!mounted) return;
+      context.pop(); // Close dialog on success
+      Toast.show(
+        context,
+        'User created successfully!',
+        type: ToastType.success,
+      );
     } on FirebaseAuthException catch (e) {
-      if (mounted) {
-        Toast.show(
-          context,
-          e.message ?? 'An unknown error occurred.',
-          type: ToastType.error,
-        );
-      }
+      if (!mounted) return;
+      Toast.show(
+        context,
+        e.message ?? 'An unknown error occurred.',
+        type: ToastType.error,
+      );
     } catch (e) {
-      if (mounted) {
-        Toast.show(
-          context,
-          'An unexpected error occurred.',
-          type: ToastType.error,
-        );
-      }
+      if (!mounted) return;
+      Toast.show(
+        context,
+        'An unexpected error occurred.',
+        type: ToastType.error,
+      );
     }
   }
 
@@ -646,95 +687,187 @@ class _UserManagementScreenState extends State<UserManagementScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Search Bar
+              // Enhanced Search Bar
               Container(
                 decoration: BoxDecoration(
                   color: const Color(0xFF1E1E1E),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white24),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: _search.isNotEmpty ? Colors.blue.shade400.withAlpha(100) : Colors.white24,
+                    width: _search.isNotEmpty ? 1.5 : 1,
+                  ),
+                  boxShadow: _search.isNotEmpty
+                      ? [
+                          BoxShadow(
+                            color: Colors.blue.shade400.withAlpha(30),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          )
+                        ]
+                      : null,
                 ),
                 child: TextField(
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
                   decoration: InputDecoration(
-                    prefixIcon: Icon(
-                      Icons.search_rounded,
-                      color: Colors.white70,
+                    prefixIcon: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: Icon(
+                        _search.isNotEmpty ? Icons.search : Icons.search_rounded,
+                        key: ValueKey(_search.isNotEmpty),
+                        color: _search.isNotEmpty ? Colors.blue.shade400 : Colors.white70,
+                        size: _search.isNotEmpty ? 22 : 20,
+                      ),
                     ),
+                    suffixIcon: _search.isNotEmpty
+                        ? IconButton(
+                            onPressed: () {
+                              setState(() {
+                                _search = '';
+                                _debouncedSearch = '';
+                              });
+                              _searchDebounceTimer?.cancel();
+                            },
+                            icon: Icon(
+                              Icons.clear_rounded,
+                              color: Colors.white54,
+                              size: 18,
+                            ),
+                          )
+                        : null,
                     hintText: 'Search by name or email...',
-                    hintStyle: const TextStyle(color: Colors.white54),
+                    hintStyle: TextStyle(
+                      color: Colors.white.withAlpha(120),
+                      fontSize: 16,
+                    ),
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 16,
+                      horizontal: 20,
+                      vertical: 18,
                     ),
+                    focusedBorder: InputBorder.none,
+                    enabledBorder: InputBorder.none,
                   ),
-                  onChanged: (val) => setState(() => _search = val),
+                  onChanged: (val) {
+                    // Update immediate search value for UI feedback
+                    setState(() => _search = val);
+
+                    // Debounce filtering to prevent excessive rebuilds
+                    _searchDebounceTimer?.cancel();
+                    _searchDebounceTimer = Timer(const Duration(milliseconds: 300), () {
+                      if (mounted) {
+                        setState(() => _debouncedSearch = val);
+                      }
+                    });
+                  },
                 ),
               ),
               const SizedBox(height: 16),
-              // Filter and Add Button Row
-              Row(
-                children: [
-                  // Role Filter
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E1E1E),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white24),
-                    ),
-                    child: Theme(
-                      data: Theme.of(context).copyWith(
-                        canvasColor: const Color(0xFF1E1E1E),
-                      ),
-                      child: DropdownButton<String>(
-                        value: _selectedRole,
-                        style: const TextStyle(color: Colors.white),
-                        icon: Icon(
-                          Icons.keyboard_arrow_down_rounded,
-                          color: Colors.white70,
+              // Enhanced Filter and Actions Row
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E1E1E),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white.withAlpha(30)),
+                ),
+                child: Row(
+                  children: [
+                    // Role Filter with enhanced design
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF252525),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _selectedRole != 'All' ? Colors.blue.shade400.withAlpha(100) : Colors.white.withAlpha(30),
+                          ),
                         ),
-                        underline: Container(),
-                        items: _roles.map((role) {
-                          return DropdownMenuItem(
-                            value: role,
-                            child: Row(
-                              children: [
-                                Icon(
-                                  _getRoleIcon(role),
-                                  color: _getRoleColor(role),
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(role),
-                              ],
+                        child: Theme(
+                          data: Theme.of(context).copyWith(
+                            canvasColor: const Color(0xFF252525),
+                          ),
+                          child: DropdownButton<String>(
+                            value: _selectedRole,
+                            isExpanded: true,
+                            style: const TextStyle(color: Colors.white, fontSize: 14),
+                            icon: AnimatedRotation(
+                              turns: 0.0, // You could make this rotate on open if needed
+                              duration: const Duration(milliseconds: 200),
+                              child: Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                color: _selectedRole != 'All' ? Colors.blue.shade400 : Colors.white70,
+                                size: 18,
+                              ),
                             ),
-                          );
-                        }).toList(),
-                        onChanged: (val) => setState(() => _selectedRole = val!),
+                            underline: Container(),
+                            items: _roles.map((role) {
+                              final isSelected = role == _selectedRole;
+                              return DropdownMenuItem(
+                                value: role,
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: _getRoleColor(role).withAlpha(30),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Icon(
+                                        _getRoleIcon(role),
+                                        color: _getRoleColor(role),
+                                        size: 16,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        role,
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                        ),
+                                      ),
+                                    ),
+                                    if (isSelected) ...[
+                                      const SizedBox(width: 8),
+                                      Icon(
+                                        Icons.check_circle_rounded,
+                                        color: Colors.blue.shade400,
+                                        size: 16,
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (val) => setState(() => _selectedRole = val!),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                  const Spacer(),
-                  // Add User Button
-                  ElevatedButton.icon(
-                    onPressed: _showAddUserDialog,
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Add User'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
+                    const SizedBox(width: 12),
+                    // Enhanced Add User Button
+                    ElevatedButton.icon(
+                      onPressed: _showAddUserDialog,
+                      icon: const Icon(Icons.person_add_rounded, size: 18),
+                      label: const Text('Add User'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue.shade600,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shadowColor: Colors.blue.shade600.withAlpha(50),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 14,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               const SizedBox(height: 24),
               // Users List Section
@@ -764,20 +897,30 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                   }
 
                   final users = snapshot.data!.docs;
-                  final filteredUsers = users.where((doc) {
-                    final data = doc.data() as Map<String, dynamic>;
-                    final name = data['name']?.toLowerCase() ?? '';
-                    final email = data['email']?.toLowerCase() ?? '';
-                    final role = data['role'] ?? '';
+                  // Use debounced search for filtering to prevent excessive rebuilds
+                  final searchTerm = _debouncedSearch.toLowerCase().trim();
+                  final filteredUsers = searchTerm.isEmpty && _selectedRole == 'All'
+                      ? users // No filtering needed
+                      : users.where((doc) {
+                          final data = doc.data() as Map<String, dynamic>;
+                          final role = data['role'] ?? '';
 
-                    final matchesRole = _selectedRole == 'All' || role == _selectedRole;
-                    final matchesSearch = name.contains(_search.toLowerCase()) ||
-                                         email.contains(_search.toLowerCase());
+                          // Early return if role doesn't match
+                          if (_selectedRole != 'All' && role != _selectedRole) {
+                            return false;
+                          }
 
-                    return matchesRole && matchesSearch;
-                  }).toList();
+                          // If no search term, role match is sufficient
+                          if (searchTerm.isEmpty) return true;
+
+                          final name = data['name']?.toLowerCase() ?? '';
+                          final email = data['email']?.toLowerCase() ?? '';
+
+                          return name.contains(searchTerm) || email.contains(searchTerm);
+                        }).toList();
 
                   return AnimationLimiter(
+                    key: ValueKey('user_list_${filteredUsers.length}_${_search}_$_selectedRole'),
                     child: Column(
                       children: filteredUsers.map((userDoc) {
                         final userData = userDoc.data() as Map<String, dynamic>;
@@ -791,7 +934,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                             child: FadeInAnimation(
                               child: Padding(
                                 padding: const EdgeInsets.only(bottom: 12),
-                                child: _buildUserCard(userData),
+                                child: _buildUserCard(userData, userDoc.id),
                               ),
                             ),
                           ),
@@ -812,85 +955,177 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     );
   }
 
-  Widget _buildUserCard(Map<String, dynamic> userData) {
+  Widget _buildUserCard(Map<String, dynamic> userData, String userId) {
     final role = userData['role'] ?? 'Unknown';
     final roleColor = _getRoleColor(role);
+    final isExpanded = _expandedUserId == userId;
+    final expansionController = _getExpansionController(userId);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white24),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
+    return AnimatedBuilder(
+      animation: expansionController,
+      builder: (context, child) {
+        // Only the animated parts are rebuilt here
+        return child!;
+      },
+      child: Container( // Move static content to child to prevent unnecessary rebuilds
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E1E1E),
           borderRadius: BorderRadius.circular(16),
-          onTap: () => _showUserDetails(userData),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
+          border: Border.all(color: Colors.white24),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => _toggleUserExpansion(userId),
+            child: Column(
               children: [
-                // User Avatar
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: roleColor.withAlpha(25),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: roleColor.withAlpha(76),
-                      width: 1,
-                    ),
-                  ),
-                  child: Icon(
-                    _getRoleIcon(role),
-                    color: roleColor,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // User Info
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                // Main user info row
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
                     children: [
-                      Text(
-                        userData['name'] ?? 'No Name',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                      // User Avatar
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: roleColor.withAlpha(25),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: roleColor.withAlpha(76),
+                            width: 1,
+                          ),
+                        ),
+                        child: Icon(
+                          _getRoleIcon(role),
+                          color: roleColor,
+                          size: 20,
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        userData['email'] ?? 'No Email',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 14,
+                      const SizedBox(width: 12),
+                      // User Info
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              userData['name'] ?? 'No Name',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              userData['email'] ?? 'No Email',
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
                         ),
+                      ),
+                      // Role Badge and Expand Icon
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: roleColor.withAlpha(25),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: roleColor.withAlpha(76),
+                              ),
+                            ),
+                            child: Text(
+                              role,
+                              style: TextStyle(
+                                color: roleColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          AnimatedRotation(
+                            turns: isExpanded ? 0.5 : 0,
+                            duration: const Duration(milliseconds: 300),
+                            child: Icon(
+                              Icons.expand_more,
+                              color: Colors.white70,
+                              size: 20,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
-                // Role Badge
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: roleColor.withAlpha(25),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: roleColor.withAlpha(76),
-                    ),
-                  ),
-                  child: Text(
-                    role,
-                    style: TextStyle(
-                      color: roleColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
+                // Expandable details section
+                SizeTransition(
+                  sizeFactor: expansionController,
+                  axis: Axis.vertical,
+                  child: FadeTransition(
+                    opacity: expansionController,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF252525),
+                        borderRadius: const BorderRadius.only(
+                          bottomLeft: Radius.circular(16),
+                          bottomRight: Radius.circular(16),
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Divider(color: Colors.white24, height: 1),
+                            const SizedBox(height: 16),
+                            _buildDetailRow('Full Name:', userData['name'] ?? 'No Name'),
+                            _buildDetailRow('Email Address:', userData['email'] ?? 'No Email'),
+                            _buildDetailRow('Role:', userData['role'] ?? 'Unknown'),
+                            if (userData['createdAt'] != null) ...[
+                              _buildDetailRow('Created Date:', _formatDate((userData['createdAt'] as Timestamp).toDate())),
+                            ],
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                if (userData['role'] != 'Student') ...[
+                                  TextButton.icon(
+                                    onPressed: () {
+                                      _showEditUserDialog(userData, userId);
+                                    },
+                                    icon: const Icon(Icons.edit, size: 16),
+                                    label: const Text('Edit'),
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: Colors.blue.shade400,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  TextButton.icon(
+                                    onPressed: () {
+                                      _showDeleteConfirmationDialog(userId, userData['name']);
+                                    },
+                                    icon: const Icon(Icons.delete, size: 16),
+                                    label: const Text('Delete'),
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: Colors.red.shade400,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    ),
+                                  ),
+                                ]
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -982,6 +1217,289 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     );
   }
 
+  Future<void> _showEditUserDialog(Map<String, dynamic> userData, String userId) async {
+    final formKey = GlobalKey<FormState>();
+    final nameController = TextEditingController(text: userData['name']);
+    String selectedRole = userData['role'];
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        bool isLoading = false;
+
+        final screenSize = MediaQuery.of(context).size;
+        final isSmallScreen = screenSize.width < 600;
+        final dialogPadding = isSmallScreen ? 20.0 : 32.0;
+        final titleFontSize = isSmallScreen ? 20.0 : 24.0;
+        final spacing = isSmallScreen ? 16.0 : 32.0;
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              child: Container(
+                constraints: BoxConstraints(
+                  maxWidth: isSmallScreen ? screenSize.width * 0.95 : 500,
+                  maxHeight: screenSize.height * 0.9,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E1E1E),
+                  borderRadius: BorderRadius.circular(isSmallScreen ? 20 : 24),
+                  border: Border.all(
+                    color: Colors.white.withAlpha(26),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withAlpha(77),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: EdgeInsets.all(dialogPadding),
+                    child: Form(
+                      key: formKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Edit User',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: titleFontSize,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: () => context.pop(),
+                                icon: const Icon(Icons.close, color: Colors.white70),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: spacing),
+                          Text(
+                            'Full Name',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: isSmallScreen ? 14 : 16,
+                            ),
+                          ),
+                          SizedBox(height: isSmallScreen ? 6 : 8),
+                          TextFormField(
+                            controller: nameController,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: InputDecoration(
+                              hintText: 'Enter full name',
+                              hintStyle: const TextStyle(color: Colors.white54),
+                              filled: true,
+                              fillColor: const Color(0xFF2C2C2C),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(isSmallScreen ? 10 : 12),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: isSmallScreen ? 14 : 16,
+                                vertical: isSmallScreen ? 14 : 16,
+                              ),
+                            ),
+                            validator: (v) => v!.isEmpty ? 'Name cannot be empty' : null,
+                          ),
+                          SizedBox(height: isSmallScreen ? 16 : 20),
+                          Text(
+                            'Role',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: isSmallScreen ? 14 : 16,
+                            ),
+                          ),
+                          SizedBox(height: isSmallScreen ? 10 : 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2C2C2C),
+                              borderRadius: BorderRadius.circular(isSmallScreen ? 10 : 12),
+                            ),
+                            child: DropdownButtonFormField<String>(
+                              initialValue: selectedRole,
+                              dropdownColor: const Color(0xFF2C2C2C),
+                              style: const TextStyle(color: Colors.white),
+                              decoration: InputDecoration(
+                                border: InputBorder.none,
+                              ),
+                              items: ['Admin', 'KP', 'Student']
+                                  .map((role) => DropdownMenuItem(
+                                        value: role,
+                                        child: Text(role),
+                                      ))
+                                  .toList(),
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setDialogState(() {
+                                    selectedRole = val;
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                          SizedBox(height: spacing),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: isLoading ? null : () => Navigator.of(context).pop(),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.white70,
+                                    side: BorderSide(color: Colors.white.withAlpha(51)),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                  ),
+                                  child: Text('Cancel'),
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: isLoading
+                                      ? null
+                                      : () async {
+                                          if (formKey.currentState!.validate()) {
+                                            setDialogState(() => isLoading = true);
+                                            await _handleUpdateUser(
+                                              userId: userId,
+                                              name: nameController.text.trim(),
+                                              role: selectedRole,
+                                            );
+                                            if (!context.mounted) return;
+                                            setDialogState(() => isLoading = false);
+                                            Navigator.of(context).pop();
+                                          }
+                                        },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blue,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                  ),
+                                  child: isLoading
+                                      ? const SizedBox(
+                                          height: 20,
+                                          width: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : const Text('Update User'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _handleUpdateUser({
+    required String userId,
+    required String name,
+    required String role,
+  }) async {
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(userId).update({
+        'name': name,
+        'role': role,
+      });
+      if (!mounted) return;
+      Toast.show(context, 'User updated successfully!', type: ToastType.success);
+    } catch (e) {
+      if (!mounted) return;
+      Toast.show(context, 'Failed to update user.', type: ToastType.error);
+    }
+  }
+
+    Future<void> _showDeleteConfirmationDialog(String userId, String userName) async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false, // user must tap button!
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1E1E1E),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.red.shade400),
+              const SizedBox(width: 10),
+              Text('Delete User', style: TextStyle(color: Colors.white)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Text('Are you sure you want to delete the user "$userName"?', style: TextStyle(color: Colors.white70)),
+                const SizedBox(height: 10),
+                Text('This action cannot be undone and will only remove user from the database, not from authentication. Please delete from the Firebase console manually.', style: TextStyle(color: Colors.white54, fontSize: 12)),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade400,
+              ),
+              child: Text('Delete'),
+              onPressed: () {
+                _handleDeleteUser(userId);
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _handleDeleteUser(String userId) async {
+    try {
+      // Deleting user from Firestore.
+      // NOTE: This does not delete the user from Firebase Auth.
+      // A cloud function is required for that.
+      await FirebaseFirestore.instance.collection('users').doc(userId).delete();
+      if (!mounted) return;
+      Toast.show(context, 'User deleted successfully!', type: ToastType.success);
+    } catch (e) {
+      if (!mounted) return;
+      Toast.show(context, 'Failed to delete user.', type: ToastType.error);
+    }
+  }
+
   IconData _getRoleIcon(String role) {
     switch (role) {
       case 'Admin':
@@ -1008,76 +1526,9 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     }
   }
 
-  void _showUserDetails(Map<String, dynamic> userData) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 400),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1E1E1E),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white24),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: _getRoleColor(userData['role'] ?? 'Unknown').withAlpha(25),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: _getRoleColor(userData['role'] ?? 'Unknown').withAlpha(76),
-                        ),
-                      ),
-                      child: Icon(
-                        _getRoleIcon(userData['role'] ?? 'Unknown'),
-                        color: _getRoleColor(userData['role'] ?? 'Unknown'),
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'User Details',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(
-                        Icons.close,
-                        color: Colors.white70,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                // User Info
-                _buildDetailRow('Name', userData['name'] ?? 'No Name'),
-                _buildDetailRow('Email', userData['email'] ?? 'No Email'),
-                _buildDetailRow('Role', userData['role'] ?? 'Unknown'),
-                if (userData['createdAt'] != null) ...[
-                  _buildDetailRow('Created', _formatDate((userData['createdAt'] as Timestamp).toDate())),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  // User details are now shown through expandable cards
+  // The old dialog-based _showUserDetails method has been replaced with
+  // inline expandable views in _buildUserCard for better UX
 
   Widget _buildDetailRow(String label, String value) {
     return Padding(
@@ -1090,7 +1541,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
             child: Text(
               '$label:',
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.6),
+                color: Colors.white.withAlpha(153),
                 fontWeight: FontWeight.w500,
               ),
             ),

@@ -19,6 +19,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import 'models/subject_model.dart';
+
 /// Notifier to expose authentication state changes to GoRouter.
 /// This is the standard way to implement authentication-based redirects.
 class GoRouterNotifier extends ChangeNotifier {
@@ -141,24 +143,24 @@ final GoRouter router = GoRouter(
       name: 'admin-create-subject',
       builder: (context, state) => const CreateSubjectPage(),
     ),
-    GoRoute(
+ GoRoute(
       path: '/admin/edit-subject/:subjectId',
       name: 'admin-edit-subject',
       builder: (context, state) {
-        final subjectId = state.pathParameters['subjectId']!;
-        final subjectData = state.extra as Map<String, dynamic>;
-        return EditSubjectPage(subjectId: subjectId, subjectData: subjectData);
+        // Now 'extra' is a strongly-typed Subject object.
+        final subject = state.extra as Subject;
+        return EditSubjectPage(subject: subject);
       },
     ),
+ // FIX: Removed the redundant '/admin/review-content' route
     GoRoute(
-      path: '/admin/review-content',
-      name: 'admin-review-content',
-      builder: (context, state) => const ReviewContentPage(),
-    ),
-    GoRoute(
-      path: '/admin/review-subject',
+      path: '/admin/review-subject/:subjectId',
       name: 'admin-review-subject',
-      builder: (context, state) => const ReviewContentPage(),
+      builder: (context, state) {
+        // FIX: Use the correctly renamed class and pass the parameter
+        final subjectId = state.pathParameters['subjectId']!;
+        return ReviewSubjectPage(subjectId: subjectId);
+      },
     ),
     GoRoute(
       path: '/kp/dashboard',

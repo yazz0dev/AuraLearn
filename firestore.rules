@@ -122,5 +122,12 @@ service cloud.firestore {
       // Only admins can delete content chunks
       allow delete: if isAdmin();
     }
+
+    // Collection group rules for cross-subject queries
+    match /{path=**}/topics/{topicId} {
+      // Only admins can perform collection group queries on topics
+      // This is needed for admin dashboard review queue functionality
+      allow read, list: if isAdmin();
+    }
   }
 }

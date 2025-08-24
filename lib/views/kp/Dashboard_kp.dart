@@ -1,11 +1,14 @@
 import 'package:auralearn/components/authenticated_app_layout.dart';
+// ignore: unused_import
 import 'package:auralearn/components/bottom_bar.dart';
 import 'package:auralearn/components/skeleton_loader.dart';
+import 'package:auralearn/services/firestore_cache_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../enums/user_role.dart';
 
 class DashboardKP extends StatefulWidget {
   const DashboardKP({super.key});
@@ -15,10 +18,11 @@ class DashboardKP extends StatefulWidget {
 }
 
 class _DashboardKPState extends State<DashboardKP>
-    with SingleTickerProviderStateMixin {
+   with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
-  late Stream<QuerySnapshot> _assignedSubjectsStream;
+  final FirestoreCacheService _firestoreCache = FirestoreCacheService();
   String? _currentUserId;
+  List<Map<String, dynamic>>? _cachedSubjects;
 
   @override
   void initState() {
@@ -35,11 +39,22 @@ class _DashboardKPState extends State<DashboardKP>
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       _currentUserId = user.uid;
-      // Query subjects assigned to this KP
-      _assignedSubjectsStream = FirebaseFirestore.instance
-          .collection('subjects')
-          .where('assignedKpId', isEqualTo: _currentUserId)
-          .snapshots();
+      _loadSubjects();
+    }
+  }
+
+  Future<void> _loadSubjects({bool forceRefresh = false}) async {
+    if (_currentUserId == null) return;
+
+    try {
+      final subjects = await _firestoreCache.getKPSubjects(_currentUserId!, forceRefresh: forceRefresh);
+      if (mounted) {
+        setState(() {
+          _cachedSubjects = subjects;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading KP subjects: $e');
     }
   }
 
@@ -54,97 +69,42 @@ class _DashboardKPState extends State<DashboardKP>
     return AuthenticatedAppLayout(
       role: UserRole.kp,
       appBarTitle: 'My Subjects',
+      showLogoutButton: true, 
       bottomNavIndex: 0,
       child: _currentUserId == null
           ? const Center(child: CircularProgressIndicator())
-          : StreamBuilder<QuerySnapshot>(
-              stream: _assignedSubjectsStream,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return _buildLoadingSkeleton();
-                }
+          : RefreshIndicator(
+              onRefresh: () => _loadSubjects(forceRefresh: true),
+              child: _cachedSubjects == null
+                  ? _buildLoadingSkeleton()
+                  : _cachedSubjects!.isEmpty
+                      ? _buildEmptyState()
+                      : AnimationLimiter(
+                          child: ListView.builder(
+                            padding: const EdgeInsets.all(20),
+                            itemCount: _cachedSubjects!.length,
+                            itemBuilder: (context, index) {
+                              final subject = _cachedSubjects![index];
 
-                if (snapshot.hasError) {
-                  debugPrint('Firestore error: ${snapshot.error}');
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.error_outline,
-                          size: 64,
-                          color: Colors.red[300],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Error loading subjects',
-                          style: TextStyle(
-                            color: Colors.red[300],
-                            fontSize: 18,
+                              return AnimationConfiguration.staggeredList(
+                                position: index,
+                                duration: const Duration(milliseconds: 200),
+                                child: SlideAnimation(
+                                  verticalOffset: 15.0,
+                                  child: FadeInAnimation(
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(bottom: 24),
+                                      child: _buildSubjectCard(
+                                        subjectId: subject['_id'] ?? '',
+                                        subjectData: subject,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '${snapshot.error}',
-                          style: const TextStyle(
-                            color: Colors.white54,
-                            fontSize: 12,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                final subjects = snapshot.data?.docs ?? [];
-
-                // Sort subjects by createdAt on client side
-                subjects.sort((a, b) {
-                  final aData = a.data() as Map<String, dynamic>;
-                  final bData = b.data() as Map<String, dynamic>;
-                  final aCreatedAt = aData['createdAt'] as Timestamp?;
-                  final bCreatedAt = bData['createdAt'] as Timestamp?;
-
-                  if (aCreatedAt == null && bCreatedAt == null) return 0;
-                  if (aCreatedAt == null) return 1;
-                  if (bCreatedAt == null) return -1;
-
-                  return bCreatedAt.compareTo(aCreatedAt); // Descending order
-                });
-
-                if (subjects.isEmpty) {
-                  return _buildEmptyState();
-                }
-
-                return AnimationLimiter(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(20),
-                    itemCount: subjects.length,
-                    itemBuilder: (context, index) {
-                      final subject = subjects[index];
-                      final data = subject.data() as Map<String, dynamic>;
-
-                      return AnimationConfiguration.staggeredList(
-                        position: index,
-                        duration: const Duration(milliseconds: 200),
-                        child: SlideAnimation(
-                          verticalOffset: 15.0,
-                          child: FadeInAnimation(
-                            child: Padding(
-                              padding: const EdgeInsets.only(bottom: 24),
-                              child: _buildSubjectCard(
-                                subjectId: subject.id,
-                                subjectData: data,
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
             ),
     );
   }

@@ -1,11 +1,11 @@
 import 'package:auralearn/components/authenticated_app_layout.dart';
 import 'package:auralearn/components/skeleton_loader.dart';
+import 'package:auralearn/services/firestore_cache_service.dart';
 import 'package:auralearn/utils/page_transitions.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:go_router/go_router.dart';
-import '../../components/bottom_bar.dart';
+import '../../enums/user_role.dart';
 
 class DashboardAdmin extends StatefulWidget {
   const DashboardAdmin({super.key});
@@ -17,6 +17,7 @@ class DashboardAdmin extends StatefulWidget {
 class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStateMixin {
   int _currentIndex = 0;
   late Future<Map<String, int>> _userCountsFuture;
+  final FirestoreCacheService _firestoreCache = FirestoreCacheService();
 
   late final AnimationController _pageController;
 
@@ -35,17 +36,7 @@ class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStat
   }
 
   Future<Map<String, int>> _fetchUserCounts() async {
-    final usersCollection = FirebaseFirestore.instance.collection('users');
-    
-    final totalUsersQuery = await usersCollection.count().get();
-    final studentUsersQuery = await usersCollection.where('role', isEqualTo: 'Student').count().get();
-    final kpUsersQuery = await usersCollection.where('role', isEqualTo: 'KP').count().get();
-
-    return {
-      'total': totalUsersQuery.count ?? 0,
-      'students': studentUsersQuery.count ?? 0,
-      'kps': kpUsersQuery.count ?? 0,
-    };
+    return await _firestoreCache.getUserCounts();
   }
 
 
@@ -89,6 +80,7 @@ class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStat
       appBarTitle: 'AuraLearn Admin',
       bottomNavIndex: _currentIndex,
       onBottomNavTap: _onNavigate,
+      showLogoutButton: true, 
       child: FutureBuilder<Map<String, int>>(
         future: _userCountsFuture,
         builder: (context, snapshot) {
@@ -334,23 +326,19 @@ class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStat
   }
 
   Widget _buildReviewQueue() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collectionGroup('topics')
-          .where('status', isEqualTo: 'pending_review')
-          .limit(10) // Limit to avoid fetching too much data
-          .snapshots(),
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _firestoreCache.getTopicsPendingReview(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return _buildEmptyStateCard('Loading review queue...');
         }
 
         if (snapshot.hasError) {
-          debugPrint('Review queue error: \${snapshot.error}');
+          debugPrint('Review queue error: ${snapshot.error}');
           return _buildEmptyStateCard('Error loading review queue');
         }
 
-        final topics = snapshot.data?.docs ?? [];
+        final topics = snapshot.data ?? [];
 
         if (topics.isEmpty) {
           return _buildEmptyStateCard('No items in review queue');
@@ -359,9 +347,8 @@ class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStat
         // Group topics by subject
         final Map<String, Map<String, dynamic>> subjectsToReview = {};
         for (var topic in topics) {
-          final data = topic.data() as Map<String, dynamic>;
-          final subjectId = topic.reference.parent.parent!.id;
-          final subjectName = data['subject_name'] ?? 'Unknown Subject';
+          final subjectId = topic['_path']?.split('/')[1] ?? 'unknown';
+          final subjectName = topic['subject_name'] ?? 'Unknown Subject';
 
           if (!subjectsToReview.containsKey(subjectId)) {
             subjectsToReview[subjectId] = {
@@ -378,8 +365,10 @@ class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStat
 
         return Column(
           children: subjectsToReview.entries.map((entry) {
+            final subjectId = entry.key;
             final subjectData = entry.value;
             final subjectName = subjectData['name'];
+            final topicCount = subjectData['topic_count'];
 
             return Container(
               margin: const EdgeInsets.only(bottom: 8),
@@ -412,7 +401,7 @@ class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStat
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
-                          '\$topicCount topic(s) to review',
+                          '$topicCount topic(s) to review',
                           style: const TextStyle(
                             color: Colors.white70,
                             fontSize: 12,
@@ -422,7 +411,7 @@ class _DashboardAdminState extends State<DashboardAdmin> with TickerProviderStat
                     ),
                   ),
                   TextButton(
-                    onPressed: () => context.go('/admin/review-subject/\$subjectId'),
+                    onPressed: () => context.go('/admin/review-subject/$subjectId'),
                     child: const Text(
                       'Review',
                       style: TextStyle(color: Colors.orange),

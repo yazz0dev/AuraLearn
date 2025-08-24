@@ -1,18 +1,19 @@
 import 'package:auralearn/components/authenticated_app_layout.dart';
 import 'package:auralearn/components/toast.dart';
+import 'package:auralearn/models/subject_model.dart';
+import 'package:auralearn/models/user_model.dart';
+import 'package:auralearn/services/firestore_cache_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../components/bottom_bar.dart';
+import '../../enums/user_role.dart';
 
 class EditSubjectPage extends StatefulWidget {
-  final String subjectId;
-  final Map<String, dynamic> subjectData;
+  final Subject subject;
 
   const EditSubjectPage({
     super.key,
-    required this.subjectId,
-    required this.subjectData,
+    required this.subject,
   });
 
   @override
@@ -20,7 +21,6 @@ class EditSubjectPage extends StatefulWidget {
 }
 
 class _EditSubjectPageState extends State<EditSubjectPage> {
-  int _currentIndex = 2; // Accessed from subjects screen
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
   late final TextEditingController _descriptionController;
@@ -28,8 +28,10 @@ class _EditSubjectPageState extends State<EditSubjectPage> {
   late bool _isActive;
   bool _isLoading = false;
   bool _isDeleting = false;
-  List<Map<String, dynamic>> _kpUsers = [];
+  List<AppUser> _kpUsers = [];
   String? _selectedKpId;
+  int _currentIndex = 2; // Edit subject page index
+  final FirestoreCacheService _firestoreCache = FirestoreCacheService();
 
   @override
   void initState() {
@@ -39,36 +41,18 @@ class _EditSubjectPageState extends State<EditSubjectPage> {
   }
 
   void _initializeControllers() {
-    _nameController = TextEditingController(text: widget.subjectData['name'] ?? '');
-    _descriptionController = TextEditingController(text: widget.subjectData['description'] ?? '');
-    _isActive = widget.subjectData['isActive'] ?? true;
-    _selectedKpId = widget.subjectData['assignedKpId'];
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _descriptionController.dispose();
-    super.dispose();
+    _nameController = TextEditingController(text: widget.subject.name);
+    _descriptionController = TextEditingController(text: widget.subject.description);
+    _isActive = widget.subject.isActive;
+    _selectedKpId = widget.subject.assignedKpId;
   }
 
   Future<void> _loadKpUsers() async {
     try {
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .where('role', isEqualTo: 'KP')
-          .get();
-
-      setState(() {
-        _kpUsers = querySnapshot.docs.map((doc) {
-          final data = doc.data();
-          return {
-            'id': doc.id,
-            'name': data['name'] ?? 'Unknown',
-            'email': data['email'] ?? '',
-          };
-        }).toList();
-      });
+      final users = await _firestoreCache.getKPUsers();
+      if (mounted) {
+        setState(() => _kpUsers = users);
+      }
     } catch (e) {
       if (mounted) {
         Toast.show(context, 'Failed to load KP users', type: ToastType.error);
@@ -78,9 +62,9 @@ class _EditSubjectPageState extends State<EditSubjectPage> {
 
   String? _getValidSelectedKpId() {
     if (_selectedKpId == null) return null;
-    
+
     // Check if the selected KP ID exists in the loaded KP users
-    final kpExists = _kpUsers.any((kp) => kp['id'] == _selectedKpId);
+    final kpExists = _kpUsers.any((kp) => kp.id == _selectedKpId);
     return kpExists ? _selectedKpId : null;
   }
 
@@ -122,7 +106,7 @@ class _EditSubjectPageState extends State<EditSubjectPage> {
 
       await FirebaseFirestore.instance
           .collection('subjects')
-          .doc(widget.subjectId)
+          .doc(widget.subject.id)
           .update(subjectData);
 
       if (mounted) {
@@ -158,7 +142,7 @@ class _EditSubjectPageState extends State<EditSubjectPage> {
           backgroundColor: const Color(0xFF1E1E1E),
           title: const Text('Delete Subject', style: TextStyle(color: Colors.white)),
           content: Text(
-            'Are you sure you want to delete "${widget.subjectData['name']}"? This action cannot be undone.',
+            'Are you sure you want to delete "${widget.subject.name}"? This action cannot be undone.',
             style: const TextStyle(color: Colors.white70),
           ),
           actions: [
@@ -188,7 +172,7 @@ class _EditSubjectPageState extends State<EditSubjectPage> {
     try {
       await FirebaseFirestore.instance
           .collection('subjects')
-          .doc(widget.subjectId)
+          .doc(widget.subject.id)
           .delete();
 
       if (mounted) {
@@ -223,7 +207,7 @@ class _EditSubjectPageState extends State<EditSubjectPage> {
 
     return AuthenticatedAppLayout(
       role: UserRole.admin,
-      appBarTitle: 'Edit: ${widget.subjectData['name'] ?? 'Subject'}',
+      appBarTitle: 'Edit: ${widget.subject.name}',
       bottomNavIndex: _currentIndex,
       onBottomNavTap: _onNavigate,
       appBarActions: [
@@ -340,9 +324,9 @@ class _EditSubjectPageState extends State<EditSubjectPage> {
                     ),
                     ..._kpUsers.map(
                       (kp) => DropdownMenuItem<String>(
-                        value: kp['id'] as String,
+                        value: kp.id,
                         child: Text(
-                          '${kp['name']} (${kp['email']})',
+                          '${kp.name} (${kp.email})',
                           style: const TextStyle(color: Colors.white),
                         ),
                       ),

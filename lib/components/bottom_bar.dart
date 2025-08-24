@@ -1,8 +1,8 @@
+// lib/components/bottom_bar.dart
+
 import 'package:flutter/material.dart';
 import 'package:auralearn/utils/responsive.dart';
-
-// --- FIX: Added 'kp' to the enum to support the new role ---
-enum UserRole { admin, student, kp }
+import '../enums/user_role.dart'; // Import from the new central location
 
 class SharedBottomBar extends StatelessWidget {
   final int currentIndex;
@@ -69,8 +69,7 @@ class SharedBottomBar extends StatelessWidget {
       label: 'Subjects',
     ),
   ];
-  
-  // --- FIX: Removed the 'Profile' item as it is not needed for the KP role. ---
+
   // Items for the KP role
   static const List<BottomNavigationBarItem> _kpItems = [
     BottomNavigationBarItem(
@@ -102,13 +101,13 @@ class SharedBottomBar extends StatelessWidget {
         color: backgroundColor,
         border: Border(
           top: BorderSide(
-            color: Colors.white.withValues(alpha: 0.1),
+            color: Colors.white.withAlpha(26),
             width: 1,
           ),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
+            color: Colors.black.withAlpha(51),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -126,7 +125,7 @@ class SharedBottomBar extends StatelessWidget {
           selectedItemColor: selectedColor,
           unselectedItemColor: unselectedColor,
           selectedLabelStyle: const TextStyle(
-            fontWeight: FontWeight.w600, 
+            fontWeight: FontWeight.w600,
             fontSize: 12,
             letterSpacing: 0.5,
           ),
@@ -144,8 +143,8 @@ class SharedBottomBar extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
                 decoration: BoxDecoration(
                   color: isSelected
-                    ? selectedColor.withValues(alpha: 0.1)
-                    : Colors.transparent,
+                      ? selectedColor.withAlpha(26)
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: AnimatedScale(
@@ -159,7 +158,7 @@ class SharedBottomBar extends StatelessWidget {
                 curve: Curves.easeOutCubic,
                 padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
                 decoration: BoxDecoration(
-                  color: selectedColor.withValues(alpha: 0.1),
+                  color: selectedColor.withAlpha(26),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: AnimatedScale(

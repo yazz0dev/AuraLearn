@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'package:auralearn/components/authenticated_app_layout.dart';
 // ignore: unused_import
 import 'package:auralearn/components/bottom_bar.dart';
 import 'package:auralearn/components/skeleton_loader.dart';
+import 'package:auralearn/components/toast.dart';
 import 'package:auralearn/services/firestore_cache_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -18,11 +21,13 @@ class DashboardKP extends StatefulWidget {
 }
 
 class _DashboardKPState extends State<DashboardKP>
-   with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   final FirestoreCacheService _firestoreCache = FirestoreCacheService();
   String? _currentUserId;
   List<Map<String, dynamic>>? _cachedSubjects;
+  StreamSubscription<DocumentSnapshot>? _userSubscription;
+  bool _isLoggingOut = false;
 
   @override
   void initState() {
@@ -33,6 +38,41 @@ class _DashboardKPState extends State<DashboardKP>
     );
     _animationController.forward();
     _initializeUserData();
+    _listenToUserChanges();
+  }
+
+  void _listenToUserChanges() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      _userSubscription = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots()
+          .listen((snapshot) {
+        if (!snapshot.exists && mounted) {
+          _handleUserDeleted();
+        }
+      });
+    }
+  }
+
+  void _handleUserDeleted() async {
+    if (_isLoggingOut || !mounted) return;
+    setState(() {
+      _isLoggingOut = true;
+    });
+
+    Toast.show(
+      context,
+      'Your account is no longer active. You will be logged out.',
+      type: ToastType.error,
+    );
+
+    await FirebaseAuth.instance.signOut();
+
+    if (mounted) {
+      context.go('/');
+    }
   }
 
   void _initializeUserData() {
@@ -47,7 +87,8 @@ class _DashboardKPState extends State<DashboardKP>
     if (_currentUserId == null) return;
 
     try {
-      final subjects = await _firestoreCache.getKPSubjects(_currentUserId!, forceRefresh: forceRefresh);
+      final subjects = await _firestoreCache.getKPSubjects(_currentUserId!,
+          forceRefresh: forceRefresh);
       if (mounted) {
         setState(() {
           _cachedSubjects = subjects;
@@ -61,15 +102,23 @@ class _DashboardKPState extends State<DashboardKP>
   @override
   void dispose() {
     _animationController.dispose();
+    _userSubscription?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoggingOut) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
     return AuthenticatedAppLayout(
       role: UserRole.kp,
       appBarTitle: 'My Subjects',
-      showLogoutButton: true, 
+      showLogoutButton: true,
       bottomNavIndex: 0,
       child: _currentUserId == null
           ? const Center(child: CircularProgressIndicator())
@@ -93,7 +142,8 @@ class _DashboardKPState extends State<DashboardKP>
                                   verticalOffset: 15.0,
                                   child: FadeInAnimation(
                                     child: Padding(
-                                      padding: const EdgeInsets.only(bottom: 24),
+                                      padding:
+                                          const EdgeInsets.only(bottom: 24),
                                       child: _buildSubjectCard(
                                         subjectId: subject['_id'] ?? '',
                                         subjectData: subject,
@@ -196,6 +246,7 @@ class _DashboardKPState extends State<DashboardKP>
                 hasMaterial ? Colors.green : Colors.orange,
                 () => _navigateToUpload(subjectId, 'material'),
                 isCompleted: hasMaterial,
+                isEnabled: hasSyllabus,
               ),
               _buildActionButton(
                 'Review Content',
@@ -203,6 +254,7 @@ class _DashboardKPState extends State<DashboardKP>
                 hasContent ? Colors.green : Colors.purple,
                 () => _navigateToReview(subjectId),
                 isCompleted: hasContent,
+                isEnabled: hasSyllabus,
               ),
             ],
           ),
@@ -217,17 +269,16 @@ class _DashboardKPState extends State<DashboardKP>
     Color color,
     VoidCallback onPressed, {
     bool isCompleted = false,
+    bool isEnabled = true,
   }) {
     return ElevatedButton.icon(
-      onPressed: onPressed,
+      onPressed: isEnabled ? onPressed : null,
       icon: Icon(isCompleted ? Icons.check_circle : icon, size: 16),
       label: Text(label),
       style: ElevatedButton.styleFrom(
-        backgroundColor: isCompleted
-            ? Colors.green.withAlpha(51)
-            : color.withAlpha(51),
-        foregroundColor: isCompleted ? Colors.green : color,
-        side: BorderSide(color: isCompleted ? Colors.green : color),
+        backgroundColor: isEnabled ? (isCompleted ? Colors.green.withAlpha(51) : color.withAlpha(51)) : Colors.grey.withAlpha(20),
+        foregroundColor: isEnabled ? (isCompleted ? Colors.green : color) : Colors.grey,
+        side: BorderSide(color: isEnabled ? (isCompleted ? Colors.green : color) : Colors.grey.withAlpha(50)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         elevation: 0,

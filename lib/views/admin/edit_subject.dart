@@ -210,6 +210,7 @@ class _EditSubjectPageState extends State<EditSubjectPage> {
       appBarTitle: 'Edit: ${widget.subject.name}',
       bottomNavIndex: _currentIndex,
       onBottomNavTap: _onNavigate,
+      showCloseButton: true,
       appBarActions: [
         IconButton(
           icon: const Icon(Icons.delete, color: Colors.red),
@@ -366,21 +367,6 @@ class _EditSubjectPageState extends State<EditSubjectPage> {
               // Action buttons
               Row(
                 children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => context.go('/admin/subjects'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white70,
-                        side: const BorderSide(color: Colors.white24),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      child: const Text('Cancel'),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
                   Expanded(
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(

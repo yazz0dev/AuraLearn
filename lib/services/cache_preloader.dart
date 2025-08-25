@@ -46,6 +46,7 @@ class CachePreloader {
 
       // Role-specific preloading
       switch (userRole?.toLowerCase()) {
+        case 'superadmin':
         case 'admin':
           await _preloadAdminData();
           break;

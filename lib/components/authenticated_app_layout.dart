@@ -13,11 +13,13 @@ class AuthenticatedAppLayout extends StatefulWidget {
   final UserRole role;
   final String appBarTitle;
   final List<Widget>? appBarActions;
+  final Widget? appBarLeading;
   final int? bottomNavIndex;
   final void Function(int)? onBottomNavTap;
   final bool showBottomBar;
   final bool showCloseButton;
   final bool showLogoutButton;
+  final String? backRoute;
 
   const AuthenticatedAppLayout({
     super.key,
@@ -25,11 +27,13 @@ class AuthenticatedAppLayout extends StatefulWidget {
     required this.role,
     required this.appBarTitle,
     this.appBarActions,
+    this.appBarLeading,
     this.bottomNavIndex,
     this.onBottomNavTap,
     this.showBottomBar = true,
     this.showCloseButton = false,
     this.showLogoutButton = false,
+    this.backRoute,
   });
 
   @override
@@ -122,33 +126,40 @@ class _AuthenticatedAppLayoutState extends State<AuthenticatedAppLayout>
     );
   }
 
-  Widget _buildCloseButton() {
-    return Container(
-      margin: const EdgeInsets.only(right: 8),
-      child: Material(
-        color: Colors.transparent,
+  Widget _buildCloseButton({bool applyMargin = true}) {
+    final button = Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () {
-            if (context.canPop()) {
-              context.pop();
-            } else {
-              context.go('/${widget.role.name}/dashboard');
-            }
-          },
-          child: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withAlpha(13),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white.withAlpha(51), width: 1),
-            ),
-            child: const Icon(Icons.close, color: Colors.white70, size: 20),
+              onTap: () {
+        if (widget.backRoute != null) {
+          context.go(widget.backRoute!);
+        } else if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/${widget.role.name}/dashboard');
+        }
+      },
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white.withAlpha(13),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white.withAlpha(51), width: 1),
           ),
+          child: const Icon(Icons.close, color: Colors.white70, size: 20),
         ),
       ),
     );
+
+    if (applyMargin) {
+      return Container(
+        margin: const EdgeInsets.only(right: 8),
+        child: button,
+      );
+    }
+    return button;
   }
 
   ThemeData _buildTheme() {
@@ -255,7 +266,7 @@ class _AuthenticatedAppLayoutState extends State<AuthenticatedAppLayout>
     return Theme(
       data: theme,
       child: Scaffold(
-        appBar: AppBar(
+                appBar: AppBar(
           title: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
@@ -270,14 +281,13 @@ class _AuthenticatedAppLayoutState extends State<AuthenticatedAppLayout>
             ),
           ),
           actions: [
-            if (widget.showCloseButton) _buildCloseButton(),
             if (widget.appBarActions != null) ...widget.appBarActions!,
             if (isDesktop) ...[
               const SizedBox(width: 8),
               _buildDesktopNavigation(context),
               const SizedBox(width: 8),
             ],
-            if (widget.showLogoutButton) ...[
+            if (widget.showLogoutButton)
               Container(
                 margin: const EdgeInsets.only(right: 8),
                 child: Material(
@@ -285,7 +295,6 @@ class _AuthenticatedAppLayoutState extends State<AuthenticatedAppLayout>
                   borderRadius: BorderRadius.circular(12),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(12),
-                    // --- FIX: onTap now calls the refactored method without passing context. ---
                     onTap: _handleLogout,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -309,9 +318,17 @@ class _AuthenticatedAppLayoutState extends State<AuthenticatedAppLayout>
                   ),
                 ),
               ),
+            if (widget.showCloseButton)
+              Container(
+                margin: const EdgeInsets.only(right: 8.0),
+                child: _buildCloseButton(applyMargin: false),
+              ),
+            if (widget.showLogoutButton || widget.showCloseButton)
               const SizedBox(width: 8),
-            ],
           ],
+          leading: widget.showCloseButton
+              ? null
+              : widget.appBarLeading,
           automaticallyImplyLeading: false,
           centerTitle: true,
         ),

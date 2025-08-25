@@ -178,38 +178,7 @@ class _CreateSubjectPageState extends State<CreateSubjectPage> {
                 ),
               ),
 
-              const SizedBox(height: 18),
-
-              // Duration
-              const Text(
-                'Duration',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _durationController,
-                style: const TextStyle(color: Colors.white),
-                validator: (v) => (v == null || v.trim().isEmpty)
-                    ? 'Please enter duration'
-                    : null,
-                decoration: InputDecoration(
-                  hintText: 'e.g., 3 months, 1 semester, 40 hours',
-                  hintStyle: const TextStyle(color: Colors.white54),
-                  filled: true,
-                  fillColor: cardBg,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
-                  ),
-                ),
-              ),
+              
 
               const SizedBox(height: 18),
 

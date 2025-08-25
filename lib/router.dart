@@ -75,29 +75,44 @@ final GoRouter router = GoRouter(
       builder: (context, state) => const ForgotPasswordScreen(),
     ),
 
-    // --- ADMIN SHELL ROUTE ---
-    ShellRoute(
-      builder: (context, state, child) {
-        final page = state.uri.pathSegments.last;
-        return AdminLayout(page: page, key: const ValueKey('AdminShell'));
-      },
-      routes: [
-        GoRoute(
-          path: '/admin/dashboard',
-          name: 'admin-dashboard',
-          builder: (context, state) => const DashboardAdmin(),
+    // --- ADMIN ROUTES ---
+    GoRoute(
+      path: '/admin/dashboard',
+      name: 'admin-dashboard',
+      builder: (context, state) => AdminLayout(
+        page: 'dashboard',
+        child: const DashboardAdmin(),
+      ),
+    ),
+    GoRoute(
+      path: '/admin/users',
+      name: 'admin-users',
+      builder: (context, state) => PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
+          context.go('/admin/dashboard');
+        },
+        child: AdminLayout(
+          page: 'users',
+          child: const UserManagementScreen(),
         ),
-        GoRoute(
-          path: '/admin/users',
-          name: 'admin-users',
-          builder: (context, state) => const UserManagementScreen(),
+      ),
+    ),
+    GoRoute(
+      path: '/admin/subjects',
+      name: 'admin-subjects',
+      builder: (context, state) => PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
+          context.go('/admin/dashboard');
+        },
+        child: AdminLayout(
+          page: 'subjects',
+          child: const SubjectListScreen(),
         ),
-        GoRoute(
-          path: '/admin/subjects',
-          name: 'admin-subjects',
-          builder: (context, state) => const SubjectListScreen(),
-        ),
-      ],
+      ),
     ),
 
     // Admin routes that are NOT part of the shell
@@ -204,6 +219,7 @@ final GoRouter router = GoRouter(
     if (isLoggedIn && (isAuthenticating || location == '/')) {
       final role = await UserRoleCache().getUserRole();
       switch (role) {
+        case 'SuperAdmin':
         case 'Admin':
           return '/admin/dashboard';
         case 'KP':

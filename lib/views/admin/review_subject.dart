@@ -207,11 +207,12 @@ class _ReviewSubjectPageState extends State<ReviewSubjectPage> {
     return AuthenticatedAppLayout(
       role: UserRole.admin,
       appBarTitle: 'Review: ${_subjectName ?? 'Loading...'}',
-      // --- FIX: This page is not a main navigation destination. ---
-      bottomNavIndex: null,
+      // --- FIX: Set to subjects index (2) for proper mobile navigation ---
+      bottomNavIndex: 2,
       onBottomNavTap: _onNavigate,
-      showBottomBar: false,
+      showBottomBar: true,
       showCloseButton: true,
+      backRoute: '/admin/subjects',
       child: FutureBuilder<Map<String, dynamic>>(
         future: _loadSubjectData(),
         builder: (context, snapshot) {

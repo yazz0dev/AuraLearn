@@ -80,6 +80,7 @@ class _LoginScreenState extends State<LoginScreen>
       if (mounted) {
         debugPrint('Login successful, user role: $userRole');
         switch (userRole) {
+          case 'SuperAdmin':
           case 'Admin':
             debugPrint('Navigating to admin dashboard');
             context.go('/admin/dashboard');

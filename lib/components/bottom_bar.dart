@@ -138,8 +138,8 @@ class SharedBottomBar extends StatelessWidget {
             final isSelected = items.indexOf(item) == safeCurrentIndex;
             return BottomNavigationBarItem(
               icon: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
+                duration: const Duration(milliseconds: 600),
+                curve: Curves.elasticOut,
                 padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
                 decoration: BoxDecoration(
                   color: isSelected
@@ -148,22 +148,24 @@ class SharedBottomBar extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: AnimatedScale(
-                  duration: const Duration(milliseconds: 200),
-                  scale: isSelected ? 1.1 : 1.0,
+                  duration: const Duration(milliseconds: 600),
+                  curve: Curves.elasticOut,
+                  scale: isSelected ? 1.05 : 1.0,
                   child: item.icon,
                 ),
               ),
               activeIcon: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
+                duration: const Duration(milliseconds: 600),
+                curve: Curves.elasticOut,
                 padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
                 decoration: BoxDecoration(
                   color: selectedColor.withAlpha(26),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: AnimatedScale(
-                  duration: const Duration(milliseconds: 200),
-                  scale: 1.1,
+                  duration: const Duration(milliseconds: 600),
+                  curve: Curves.elasticOut,
+                  scale: 1.05,
                   child: item.activeIcon,
                 ),
               ),

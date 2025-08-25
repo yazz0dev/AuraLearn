@@ -3,131 +3,116 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper function to check if user is admin
+    // Helper functions for roles
+    function isSuperAdmin() {
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'SuperAdmin';
+    }
+    
     function isAdmin() {
-      return request.auth != null && 
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+    }
+
+    function isPrivilegedAdmin() {
+      return isSuperAdmin() || isAdmin();
     }
     
-    // Helper function to check if user is KP
     function isKP() {
-      return request.auth != null && 
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'KP';
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'KP';
     }
     
-    // Helper function to check if user is Student
     function isStudent() {
-      return request.auth != null && 
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Student';
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Student';
     }
     
     // Rules for the 'users' collection
     match /users/{userId} {
-      // Any authenticated user can read user profiles.
-      // The .count() function requires 'list' permission.
       allow get, list: if request.auth != null;
 
-      // A user can only create their own document, and admins can create any user.
-      // The 'role' is typically set to 'Student' on creation.
-      allow create: if request.auth.uid == userId || isAdmin();
+      // Create rules:
+      // 1. Any user can create their own 'Student' account.
+      // 2. A SuperAdmin can create an 'Admin' user.
+      // 3. A privileged admin (Admin or SuperAdmin) can create a 'KP' user.
+      allow create: if (request.auth.uid == userId && request.resource.data.role == 'Student') ||
+                     (request.resource.data.role == 'Admin' && isSuperAdmin()) ||
+                     (request.resource.data.role == 'KP' && isPrivilegedAdmin());
 
-      // An admin can update any field on a user document.
-      // A user can update their own document, but they cannot change their own 'role'.
-      allow update: if (request.auth.uid == userId && request.resource.data.role == resource.data.role) || isAdmin();
+      // Update rules:
+      // 1. A user can update their own document, but cannot change their role.
+      // 2. A privileged admin can update any user document.
+      allow update: if (request.auth.uid == userId && request.resource.data.role == resource.data.role) || isPrivilegedAdmin();
       
-      // Only admins can delete users
-      allow delete: if isAdmin();
+      // Delete rules:
+      // 1. A SuperAdmin can delete any Admin or KP.
+      // 2. An Admin can only delete KPs that they created.
+      allow delete: if (isSuperAdmin() && (resource.data.role == 'Admin' || resource.data.role == 'KP')) ||
+                     (isAdmin() && resource.data.role == 'KP' && resource.data.createdBy == request.auth.uid);
     }
 
     // Rules for the 'subjects' collection
     match /subjects/{subjectId} {
-      // Students and Admins can read all subjects
-      // KPs can only read subjects they're assigned to
       allow read: if request.auth != null && (
         isStudent() || 
-        isAdmin() || 
+        isPrivilegedAdmin() || 
         (isKP() && resource.data.assignedKpId == request.auth.uid)
       );
       
-      // Only admins can create, update, or delete subjects
-      allow create, update, delete: if isAdmin();
+      allow create, update, delete: if isPrivilegedAdmin();
       
-      // Students and Admins can list all subjects
-      // KPs can only list subjects (but individual reads will be filtered by the read rule above)
       allow list: if request.auth != null;
       
       // Rules for topics subcollection
       match /topics/{topicId} {
-        // Students and Admins can read all topics
-        // KPs can only read topics for subjects they're assigned to
         allow read, list: if request.auth != null && (
           isStudent() || 
-          isAdmin() || 
+          isPrivilegedAdmin() || 
           (isKP() && get(/databases/$(database)/documents/subjects/$(subjectId)).data.assignedKpId == request.auth.uid)
         );
         
-        // KPs can create/update topics for subjects they're assigned to
-        // Admins can create/update any topics
         allow create, update: if request.auth != null && (
-          isAdmin() || 
+          isPrivilegedAdmin() || 
           (isKP() && get(/databases/$(database)/documents/subjects/$(subjectId)).data.assignedKpId == request.auth.uid)
         );
         
-        // Only admins can delete topics
-        allow delete: if isAdmin();
+        allow delete: if isPrivilegedAdmin();
       }
       
-      // Rules for other potential subcollections (content, materials, etc.)
+      // Rules for other potential subcollections
       match /{document=**} {
-        // Students and Admins can read all subcollection documents
-        // KPs can only read subcollections for subjects they're assigned to
         allow read, list: if request.auth != null && (
           isStudent() || 
-          isAdmin() || 
+          isPrivilegedAdmin() || 
           (isKP() && get(/databases/$(database)/documents/subjects/$(subjectId)).data.assignedKpId == request.auth.uid)
         );
         
-        // KPs can write to subcollections of subjects they're assigned to
-        // Admins can write to any subcollections
         allow create, update: if request.auth != null && (
-          isAdmin() || 
+          isPrivilegedAdmin() || 
           (isKP() && get(/databases/$(database)/documents/subjects/$(subjectId)).data.assignedKpId == request.auth.uid)
         );
         
-        // Only admins can delete from subcollections
-        allow delete: if isAdmin();
+        allow delete: if isPrivilegedAdmin();
       }
     }
     
-    // Rules for content_chunks collection (AI-generated content)
+    // Rules for content_chunks collection
     match /content_chunks/{chunkId} {
-      // Students and Admins can read all content chunks
-      // KPs can read content chunks (individual document access will be filtered by subject assignment)
       allow read, list: if request.auth != null;
       
-      // KPs can create content chunks for subjects they're assigned to
-      // Admins can create any content chunks
       allow create: if request.auth != null && (
-        isAdmin() || 
+        isPrivilegedAdmin() || 
         (isKP() && get(/databases/$(database)/documents/subjects/$(request.resource.data.subject_id)).data.assignedKpId == request.auth.uid)
       );
       
-      // KPs can update content chunks for subjects they're assigned to
-      // Admins can update any content chunks
       allow update: if request.auth != null && (
-        isAdmin() || 
+        isPrivilegedAdmin() || 
         (isKP() && get(/databases/$(database)/documents/subjects/$(resource.data.subject_id)).data.assignedKpId == request.auth.uid)
       );
       
-      // Only admins can delete content chunks
-      allow delete: if isAdmin();
+      allow delete: if isPrivilegedAdmin();
     }
 
     // Collection group rules for cross-subject queries
     match /{path=**}/topics/{topicId} {
-      // Only admins can perform collection group queries on topics
-      // This is needed for admin dashboard review queue functionality
-      allow read, list: if isAdmin();
+      allow read, list: if isPrivilegedAdmin();
     }
   }
 }

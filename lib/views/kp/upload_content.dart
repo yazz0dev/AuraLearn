@@ -966,25 +966,45 @@ class _UploadContentPageState extends State<UploadContentPage> {
           });
 
           // Updated prompt for batching
-          const systemPrompt = '''
-          You are a helpful teaching assistant. Based ONLY on the provided context, generate content for the list of topics provided.
-          For EACH topic in the list, you must create exactly two distinct, detailed content chunks.
-          Each chunk must have a "title" and "content" (at least 40 words).
+          final systemPrompt = '''
+          You are a helpful teaching assistant. Your task is to generate educational content for a given list of topics, based **strictly and solely** on the provided "Context" from study materials.
 
-          OUTPUT FORMAT:
-          Your output must be a valid JSON array where each object corresponds to a topic from the input. Maintain the original order.
-          The structure for each object in the array must be:
+          **CONTEXT:**
+          $allMaterialsText
+
+          **TOPICS TO PROCESS:**
+          ${jsonEncode(topicTitles)}
+
+          **CRITICAL INSTRUCTIONS:**
+          1.  **Grounding:** For EACH topic, you MUST generate content that is directly supported by the information in the "CONTEXT". Do not invent information or use external knowledge. If the context does not contain relevant information for a topic, state that explicitly in the content.
+          2.  **Structure:** For EACH topic in the list, create exactly two distinct, detailed content chunks.
+          3.  **Content:** Each chunk must have a "title" and "content". The "content" must be at least 40 words long and be written in an educational, clear, and engaging style.
+
+          **OUTPUT FORMAT:**
+          Your output must be a single, valid JSON array. Each object in the array corresponds to a topic from the input list and must maintain the original order.
+
+          The structure for each object in the array MUST be:
           {
             "topic_title": "The exact title of the topic from the input list",
             "content_chunks": [
-              {"title": "Chunk 1 Title", "content": "Chunk 1 content..."},
-              {"title": "Chunk 2 Title", "content": "Chunk 2 content..."}
+              {
+                "title": "Chunk 1 Title (e.g., Introduction to Topic)",
+                "content": "Chunk 1 content based *only* on the provided context..."
+              },
+              {
+                "title": "Chunk 2 Title (e.g., Key Concepts of Topic)",
+                "content": "Chunk 2 content based *only* on the provided context..."
+              }
             ]
           }
+
+          **IMPORTANT:**
+          - If the context is insufficient for a topic, the "content" for its chunks should be: "The provided study materials do not contain sufficient information to generate content for this topic."
+          - Do not create content for topics not in the input list.
+          - Adhere strictly to the JSON format. No extra text or explanations.
           ''';
 
-          final prompt =
-              '$systemPrompt\n\nTopics to process:\n${jsonEncode(topicTitles)}\n\nContext: "$allMaterialsText"';
+          final prompt = systemPrompt;
 
           final String response =
               await AIService.instance.generateContent(prompt);

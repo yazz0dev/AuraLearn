@@ -1,5 +1,6 @@
 import 'package:auralearn/components/skeleton_loader.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'dart:async';
@@ -42,9 +43,13 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           _buildControlPanel(),
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance.collection('users').orderBy('createdAt', descending: true).snapshots(),
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .orderBy('createdAt', descending: true)
+                  .snapshots(),
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting && snapshot.data == null) {
+                if (snapshot.connectionState == ConnectionState.waiting &&
+                    snapshot.data == null) {
                   return _buildLoadingSkeleton();
                 }
                 if (snapshot.hasError) {
@@ -55,18 +60,25 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 final searchTerm = _debouncedSearch.toLowerCase().trim();
                 final filteredUsers = allUsers.where((doc) {
                   final data = doc.data() as Map<String, dynamic>;
-                  if (_selectedRole != 'All' && data['role'] != _selectedRole) return false;
+                                    if (_selectedRole != 'All' && data['role'] != _selectedRole) {
+                    return false;
+                  }
                   if (searchTerm.isEmpty) return true;
                   final name = data['name']?.toLowerCase() ?? '';
                   final email = data['email']?.toLowerCase() ?? '';
-                  return name.contains(searchTerm) || email.contains(searchTerm);
+                  return name.contains(searchTerm) ||
+                      email.contains(searchTerm);
                 }).toList();
 
                 if (filteredUsers.isEmpty && allUsers.isNotEmpty) {
-                  return _buildEmptyState(message: 'No users match your filters.');
+                  return _buildEmptyState(
+                    message: 'No users match your filters.',
+                  );
                 }
                 if (allUsers.isEmpty) {
-                  return _buildEmptyState(message: 'No users found. Add one to get started!');
+                  return _buildEmptyState(
+                    message: 'No users found. Add one to get started!',
+                  );
                 }
 
                 return RefreshIndicator(
@@ -85,7 +97,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                             child: FadeInAnimation(
                               child: _UserCard(
                                 key: ValueKey(userDoc.id),
-                                userData: userDoc.data() as Map<String, dynamic>,
+                                userData:
+                                    userDoc.data() as Map<String, dynamic>,
                                 userId: userDoc.id,
                               ),
                             ),
@@ -115,9 +128,12 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 controller: _searchController,
                 onChanged: (value) {
                   _searchDebounceTimer?.cancel();
-                  _searchDebounceTimer = Timer(const Duration(milliseconds: 300), () {
-                    if (mounted) setState(() => _debouncedSearch = value);
-                  });
+                  _searchDebounceTimer = Timer(
+                    const Duration(milliseconds: 300),
+                    () {
+                      if (mounted) setState(() => _debouncedSearch = value);
+                    },
+                  );
                   setState(() {});
                 },
                 decoration: InputDecoration(
@@ -142,7 +158,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: ToggleButtons(
-                        isSelected: _roles.map((role) => role == _selectedRole).toList(),
+                        isSelected: _roles
+                            .map((role) => role == _selectedRole)
+                            .toList(),
                         onPressed: (index) {
                           setState(() => _selectedRole = _roles[index]);
                         },
@@ -153,26 +171,34 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         fillColor: Colors.deepPurple.withAlpha(100),
                         color: Colors.white70,
                         // --- FIX: Removed unsupported 'visualDensity' and used padding for compact design ---
-                        children: _roles.map((role) => Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0), // Adjusted padding
-                          child: Text(role),
-                        )).toList(),
+                        children: _roles
+                            .map(
+                              (role) => Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12.0,
+                                  vertical: 8.0,
+                                ), // Adjusted padding
+                                child: Text(role),
+                              ),
+                            )
+                            .toList(),
                       ),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Material(
-                    color: Colors.deepPurple,
-                    borderRadius: BorderRadius.circular(8),
-                    child: InkWell(
-                      onTap: _showAddUserDialog,
+                  if (_selectedRole != 'Student')
+                    Material(
+                      color: Colors.deepPurple,
                       borderRadius: BorderRadius.circular(8),
-                      child: const Padding(
-                        padding: EdgeInsets.all(8.0),
-                        child: Icon(Icons.person_add_alt_1_rounded),
+                      child: InkWell(
+                        onTap: _showAddUserDialog,
+                        borderRadius: BorderRadius.circular(8),
+                        child: const Padding(
+                          padding: EdgeInsets.all(8.0),
+                          child: Icon(Icons.person_add_alt_1_rounded),
+                        ),
                       ),
                     ),
-                  )
                 ],
               ),
             ],
@@ -181,38 +207,57 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       ),
     );
   }
-  
+
   Widget _buildLoadingSkeleton() {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        SkeletonLoader(isLoading: true, child: SkeletonShapes.card(height: 120)),
+        SkeletonLoader(
+          isLoading: true,
+          child: SkeletonShapes.card(height: 120),
+        ),
         const SizedBox(height: 16),
-        ...List.generate(5, (index) => Padding(
-          padding: const EdgeInsets.only(bottom: 12.0),
-          child: SkeletonLoader(isLoading: true, child: SkeletonShapes.card(height: 70)),
-        )),
+        ...List.generate(
+          5,
+          (index) => Padding(
+            padding: const EdgeInsets.only(bottom: 12.0),
+            child: SkeletonLoader(
+              isLoading: true,
+              child: SkeletonShapes.card(height: 70),
+            ),
+          ),
+        ),
       ],
     );
   }
 
   Widget _buildErrorState() {
     return const Center(
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Icon(Icons.error_outline, color: Colors.red, size: 48),
-        SizedBox(height: 16),
-        Text('Failed to load users', style: TextStyle(color: Colors.white70)),
-      ]),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, color: Colors.red, size: 48),
+          SizedBox(height: 16),
+          Text('Failed to load users', style: TextStyle(color: Colors.white70)),
+        ],
+      ),
     );
   }
 
   Widget _buildEmptyState({required String message}) {
     return Center(
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        const Icon(Icons.people_outline, size: 48, color: Colors.white38),
-        const SizedBox(height: 16),
-        Text(message, style: const TextStyle(color: Colors.white70), textAlign: TextAlign.center),
-      ]),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.people_outline, size: 48, color: Colors.white38),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            style: const TextStyle(color: Colors.white70),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -227,14 +272,41 @@ class _UserCard extends StatefulWidget {
   State<_UserCard> createState() => __UserCardState();
 }
 
-class __UserCardState extends State<_UserCard> with SingleTickerProviderStateMixin {
+class __UserCardState extends State<_UserCard>
+    with SingleTickerProviderStateMixin {
   bool _isExpanded = false;
   late final AnimationController _animationController;
+  String? _currentUserRole;
+  bool _isRoleDataLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 250));
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
+    _fetchCurrentUserRole();
+  }
+
+  Future<void> _fetchCurrentUserRole() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      if (mounted) setState(() => _isRoleDataLoading = false);
+      return;
+    }
+    try {
+      final userDoc =
+          await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (mounted) {
+        setState(() {
+          _currentUserRole = userDoc.data()?['role'];
+          _isRoleDataLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isRoleDataLoading = false);
+    }
   }
 
   @override
@@ -258,7 +330,10 @@ class __UserCardState extends State<_UserCard> with SingleTickerProviderStateMix
   void _showDeleteDialog() {
     showDialog(
       context: context,
-      builder: (context) => DeleteConfirmationDialog(userName: widget.userData['name'], userId: widget.userId),
+      builder: (context) => DeleteConfirmationDialog(
+        userName: widget.userData['name'],
+        userId: widget.userId,
+      ),
     );
   }
 
@@ -266,6 +341,21 @@ class __UserCardState extends State<_UserCard> with SingleTickerProviderStateMix
   Widget build(BuildContext context) {
     final role = widget.userData['role'] ?? 'Unknown';
     final roleColor = _getRoleColor(role);
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    final createdBy = widget.userData['createdBy'];
+
+    bool canDelete = false;
+    if (!_isRoleDataLoading && currentUserId != null) {
+      if (_currentUserRole == 'SuperAdmin') {
+        if (role == 'Admin' || role == 'KP') {
+          canDelete = true;
+        }
+      } else if (_currentUserRole == 'Admin') {
+        if (role == 'KP' && createdBy == currentUserId) {
+          canDelete = true;
+        }
+      }
+    }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -284,37 +374,73 @@ class __UserCardState extends State<_UserCard> with SingleTickerProviderStateMix
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(widget.userData['name'] ?? 'No Name', style: const TextStyle(fontWeight: FontWeight.w600)),
-                        Text(widget.userData['email'] ?? 'No Email', style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                        Text(
+                          widget.userData['name'] ?? 'No Name',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        Text(
+                          widget.userData['email'] ?? 'No Email',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 13,
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                  AnimatedRotation(turns: _isExpanded ? 0.5 : 0, duration: const Duration(milliseconds: 250), child: const Icon(Icons.expand_more, color: Colors.white70)),
+                  AnimatedRotation(
+                    turns: _isExpanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 250),
+                    child: const Icon(Icons.expand_more, color: Colors.white70),
+                  ),
                 ],
               ),
             ),
             SizeTransition(
-              sizeFactor: CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+              sizeFactor: CurvedAnimation(
+                parent: _animationController,
+                curve: Curves.easeOut,
+              ),
               child: Container(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 child: Column(
                   children: [
                     const Divider(height: 1, thickness: 0.5),
                     const SizedBox(height: 12),
-                    _buildDetailRow('Created:', widget.userData['createdAt'] != null ? _formatDate((widget.userData['createdAt'] as Timestamp).toDate()) : 'N/A'),
+                    _buildDetailRow(
+                      'Created:',
+                      widget.userData['createdAt'] != null
+                          ? _formatDate(
+                              (widget.userData['createdAt'] as Timestamp)
+                                  .toDate(),
+                            )
+                          : 'N/A',
+                    ),
                     const SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        if (role != 'Student')
+                        if (canDelete)
                           OutlinedButton.icon(
                             onPressed: _showDeleteDialog,
-                            icon: Icon(Icons.delete_outline, size: 16, color: Colors.red.shade300),
-                            label: Text('Delete', style: TextStyle(color: Colors.red.shade300)),
-                            style: OutlinedButton.styleFrom(foregroundColor: Colors.red.shade300, side: BorderSide(color: Colors.red.shade300.withAlpha(100))),
+                            icon: Icon(
+                              Icons.delete_outline,
+                              size: 16,
+                              color: Colors.red.shade300,
+                            ),
+                            label: Text(
+                              'Delete',
+                              style: TextStyle(color: Colors.red.shade300),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red.shade300,
+                              side: BorderSide(
+                                color: Colors.red.shade300.withAlpha(100),
+                              ),
+                            ),
                           ),
                       ],
-                    )
+                    ),
                   ],
                 ),
               ),
@@ -324,7 +450,7 @@ class __UserCardState extends State<_UserCard> with SingleTickerProviderStateMix
       ),
     );
   }
-  
+
   Widget _buildDetailRow(String label, String value) => Row(
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
     children: [
@@ -336,19 +462,29 @@ class __UserCardState extends State<_UserCard> with SingleTickerProviderStateMix
   String _formatDate(DateTime date) => '${date.day}/${date.month}/${date.year}';
   IconData _getRoleIcon(String role) {
     switch (role) {
-      case 'Admin': return Icons.admin_panel_settings_rounded;
-      case 'KP': return Icons.school_rounded;
-      case 'Student': return Icons.person_rounded;
-      default: return Icons.account_circle_rounded;
+      case 'SuperAdmin':
+      case 'Admin':
+        return Icons.admin_panel_settings_rounded;
+      case 'KP':
+        return Icons.school_rounded;
+      case 'Student':
+        return Icons.person_rounded;
+      default:
+        return Icons.account_circle_rounded;
     }
   }
 
   Color _getRoleColor(String role) {
     switch (role) {
-      case 'Admin': return Colors.red.shade400;
-      case 'KP': return Colors.green.shade400;
-      case 'Student': return Colors.blue.shade400;
-      default: return Colors.grey.shade400;
+      case 'SuperAdmin':
+      case 'Admin':
+        return Colors.red.shade400;
+      case 'KP':
+        return Colors.green.shade400;
+      case 'Student':
+        return Colors.blue.shade400;
+      default:
+        return Colors.grey.shade400;
     }
   }
 }

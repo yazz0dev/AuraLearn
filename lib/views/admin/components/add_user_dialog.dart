@@ -18,6 +18,34 @@ class _AddUserDialogState extends State<AddUserDialog> {
   final _passwordController = TextEditingController();
   bool _isKP = true;
   bool _isLoading = false;
+  String? _currentUserRole;
+  bool _isRoleDataLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCurrentUserRole();
+  }
+
+  Future<void> _fetchCurrentUserRole() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      if (mounted) setState(() => _isRoleDataLoading = false);
+      return;
+    }
+    try {
+      final userDoc =
+          await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (mounted) {
+        setState(() {
+          _currentUserRole = userDoc.data()?['role'];
+          _isRoleDataLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isRoleDataLoading = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -40,7 +68,8 @@ class _AddUserDialogState extends State<AddUserDialog> {
       );
       final tempAuth = FirebaseAuth.instanceFor(app: tempApp);
 
-      UserCredential userCredential = await tempAuth.createUserWithEmailAndPassword(
+      UserCredential userCredential =
+          await tempAuth.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
@@ -54,19 +83,23 @@ class _AddUserDialogState extends State<AddUserDialog> {
         'email': _emailController.text.trim(),
         'role': _isKP ? 'KP' : 'Admin',
         'createdAt': FieldValue.serverTimestamp(),
+        'createdBy': FirebaseAuth.instance.currentUser?.uid,
       });
 
       await tempApp.delete();
 
       if (!mounted) return;
-      Toast.show(context, 'User created successfully!', type: ToastType.success);
+      Toast.show(context, 'User created successfully!',
+          type: ToastType.success);
       Navigator.of(context).pop(); // Use Navigator.of(context) to pop dialog
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      Toast.show(context, e.message ?? 'An unknown error occurred.', type: ToastType.error);
+      Toast.show(context, e.message ?? 'An unknown error occurred.',
+          type: ToastType.error);
     } catch (e) {
       if (!mounted) return;
-      Toast.show(context, 'An unexpected error occurred.', type: ToastType.error);
+      Toast.show(context, 'An unexpected error occurred.',
+          type: ToastType.error);
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -97,7 +130,11 @@ class _AddUserDialogState extends State<AddUserDialog> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Add New User', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                    const Text('Add New User',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold)),
                     IconButton(
                       onPressed: () => Navigator.of(context).pop(),
                       icon: const Icon(Icons.close, color: Colors.white70),
@@ -116,32 +153,41 @@ class _AddUserDialogState extends State<AddUserDialog> {
                   controller: _emailController,
                   style: const TextStyle(color: Colors.white),
                   decoration: const InputDecoration(labelText: 'Email Address'),
-                  validator: (v) => (v == null || !v.contains('@')) ? 'Enter a valid email' : null,
+                  validator: (v) => (v == null || !v.contains('@'))
+                      ? 'Enter a valid email'
+                      : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _passwordController,
                   style: const TextStyle(color: Colors.white),
                   obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Password (min 6 characters)'),
-                  validator: (v) => (v!.length < 6) ? 'Password must be at least 6 characters' : null,
+                  decoration: const InputDecoration(
+                      labelText: 'Password (min 6 characters)'),
+                  validator: (v) => (v!.length < 6)
+                      ? 'Password must be at least 6 characters'
+                      : null,
                 ),
                 const SizedBox(height: 20),
                 const Text('Role', style: TextStyle(color: Colors.white70)),
                 const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2C2C2C),
-                    borderRadius: BorderRadius.circular(12),
+                if (_isRoleDataLoading)
+                  const Center(child: CircularProgressIndicator())
+                else
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2C2C2C),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        _buildRoleToggle('Knowledge Provider', true),
+                        if (_currentUserRole == 'SuperAdmin')
+                          _buildRoleToggle('Admin', false),
+                      ],
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      _buildRoleToggle('Knowledge Provider', true),
-                      _buildRoleToggle('Admin', false),
-                    ],
-                  ),
-                ),
                 const SizedBox(height: 32),
                 SizedBox(
                   width: double.infinity,
@@ -149,7 +195,11 @@ class _AddUserDialogState extends State<AddUserDialog> {
                     icon: const Icon(Icons.person_add, size: 18),
                     onPressed: _isLoading ? null : _handleCreateUser,
                     label: _isLoading
-                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
                         : const Text('Create User'),
                   ),
                 ),
@@ -165,7 +215,14 @@ class _AddUserDialogState extends State<AddUserDialog> {
     final bool currentSelection = _isKP == isSelected;
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => _isKP = isSelected),
+        onTap: () {
+          if (title == 'Admin' && _currentUserRole != 'SuperAdmin') {
+            Toast.show(context, 'Only SuperAdmin can create other Admins.',
+                type: ToastType.error);
+            return;
+          }
+          setState(() => _isKP = isSelected);
+        },
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
@@ -177,7 +234,8 @@ class _AddUserDialogState extends State<AddUserDialog> {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: currentSelection ? Colors.white : Colors.white70,
-              fontWeight: currentSelection ? FontWeight.w600 : FontWeight.normal,
+              fontWeight:
+                  currentSelection ? FontWeight.w600 : FontWeight.normal,
             ),
           ),
         ),

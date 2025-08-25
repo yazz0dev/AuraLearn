@@ -1,14 +1,16 @@
+import 'dart:async';
 import 'package:auralearn/components/authenticated_app_layout.dart';
+import 'package:auralearn/components/toast.dart';
 import 'package:auralearn/enums/user_role.dart';
-import 'package:auralearn/views/admin/dashboard_admin.dart';
-import 'package:auralearn/views/admin/subject_list.dart';
-import 'package:auralearn/views/admin/user_management.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 class AdminLayout extends StatefulWidget {
   final String page;
-  const AdminLayout({super.key, required this.page});
+  final Widget child;
+  const AdminLayout({super.key, required this.page, required this.child});
 
   @override
   State<AdminLayout> createState() => _AdminLayoutState();
@@ -16,6 +18,8 @@ class AdminLayout extends StatefulWidget {
 
 class _AdminLayoutState extends State<AdminLayout> {
   late int _currentIndex;
+  StreamSubscription<DocumentSnapshot>? _userSubscription;
+  bool _isLoggingOut = false;
 
   final Map<String, int> _pageMap = {
     'dashboard': 0,
@@ -27,6 +31,47 @@ class _AdminLayoutState extends State<AdminLayout> {
   void initState() {
     super.initState();
     _updateIndex(widget.page);
+    _listenToUserChanges();
+  }
+
+  @override
+  void dispose() {
+    _userSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _listenToUserChanges() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      _userSubscription = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots()
+          .listen((snapshot) {
+        if (!snapshot.exists && mounted) {
+          _handleUserDeleted();
+        }
+      });
+    }
+  }
+
+  void _handleUserDeleted() async {
+    if (_isLoggingOut || !mounted) return;
+    setState(() {
+      _isLoggingOut = true;
+    });
+
+    Toast.show(
+      context,
+      'Your account is no longer active. You will be logged out.',
+      type: ToastType.error,
+    );
+
+    await FirebaseAuth.instance.signOut();
+
+    if (mounted) {
+      context.go('/');
+    }
   }
 
   @override
@@ -46,7 +91,13 @@ class _AdminLayoutState extends State<AdminLayout> {
   void _onNavigate(int index) {
     if (index == _currentIndex) return;
 
-    final pageName = _pageMap.entries.firstWhere((entry) => entry.value == index).key;
+    // Update index immediately for smooth UI feedback
+    setState(() {
+      _currentIndex = index;
+    });
+
+    final pageName =
+        _pageMap.entries.firstWhere((entry) => entry.value == index).key;
     context.go('/admin/$pageName');
   }
 
@@ -80,34 +131,30 @@ class _AdminLayoutState extends State<AdminLayout> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoggingOut) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
     // --- FIX: Logic to conditionally show the logout button ---
     // The logout button should only appear on the main dashboard (index 0).
     final bool isDashboardPage = _currentIndex == 0;
+    final bool isMainPage = _pageMap.containsKey(widget.page);
 
     return AuthenticatedAppLayout(
       role: UserRole.admin,
       appBarTitle: _getAppBarTitle(),
+      showCloseButton: !isMainPage,
+
       // --- FIX: Use the new boolean to control visibility ---
       showLogoutButton: isDashboardPage,
       bottomNavIndex: _currentIndex,
       onBottomNavTap: _onNavigate,
       appBarActions: _getAppBarActions(),
       key: const ValueKey('AdminLayoutShell'),
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 250),
-        transitionBuilder: (Widget child, Animation<double> animation) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-        child: IndexedStack(
-          key: ValueKey<int>(_currentIndex),
-          index: _currentIndex,
-          children: const [
-            DashboardAdmin(),
-            UserManagementScreen(),
-            SubjectListScreen(),
-          ],
-        ),
-      ),
+      child: widget.child,
     );
   }
 }

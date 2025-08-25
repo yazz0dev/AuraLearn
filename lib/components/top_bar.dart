@@ -16,7 +16,6 @@ class TopNavigationBar extends StatelessWidget {
     final isSmall = screenWidth < 400;
 
     return Container(
-      height: isVerySmall ? 60 : 70,
       padding: EdgeInsets.symmetric(
         horizontal: isVerySmall ? 8 : (isSmall ? 12 : 20),
         vertical: isVerySmall ? 8 : 12,
@@ -26,19 +25,19 @@ class TopNavigationBar extends StatelessWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            const Color(0xFF0F172A).withValues(alpha: 0.95),
-            const Color(0xFF1E293B).withValues(alpha: 0.9),
+            const Color(0xFF0F172A).withOpacity(0.95),
+            const Color(0xFF1E293B).withOpacity(0.9),
           ],
         ),
         border: Border(
           bottom: BorderSide(
-            color: Colors.white.withValues(alpha: 0.1),
+            color: Colors.white.withOpacity(0.1),
             width: 1,
           ),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
+            color: Colors.black.withOpacity(0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -71,10 +70,10 @@ class TopNavigationBar extends StatelessWidget {
         vertical: isVerySmall ? 4 : (isSmall ? 6 : 8),
       ),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(isVerySmall ? 12 : 16),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.1),
+          color: Colors.white.withOpacity(0.1),
           width: 1,
         ),
       ),
@@ -84,7 +83,7 @@ class TopNavigationBar extends StatelessWidget {
           Container(
             padding: EdgeInsets.all(isVerySmall ? 3 : (isSmall ? 4 : 6)),
             decoration: BoxDecoration(
-              color: const Color(0xFF3B82F6).withValues(alpha: 0.2),
+              color: const Color(0xFF3B82F6).withOpacity(0.2),
               borderRadius: BorderRadius.circular(isVerySmall ? 10 : 12),
             ),
             child: Icon(
@@ -122,7 +121,7 @@ class TopNavigationBar extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         _buildGlassButton(
-          isVerySmall ? 'Login' : 'Login',
+          'Login',
           false,
           onTap: onLoginTap,
           isSmall: isSmall,
@@ -130,7 +129,7 @@ class TopNavigationBar extends StatelessWidget {
         ),
         SizedBox(width: isVerySmall ? 4 : (isSmall ? 6 : 8)),
         _buildGlassButton(
-          isVerySmall ? 'Register' : 'Register',
+          'Register',
           true,
           onTap: onRegisterTap,
           isSmall: isSmall,
@@ -155,12 +154,12 @@ class TopNavigationBar extends StatelessWidget {
         onTap: onTap,
         child: Container(
           constraints: BoxConstraints(
-            minWidth: isVerySmall ? 40 : (isSmall ? 50 : 70),
-            maxWidth: isVerySmall ? 60 : (isSmall ? 70 : 100),
+            minWidth: isVerySmall ? 60 : (isSmall ? 80 : 90),
+            maxWidth: isVerySmall ? 80 : (isSmall ? 100 : 120),
           ),
           padding: EdgeInsets.symmetric(
-            horizontal: isVerySmall ? 4 : (isSmall ? 8 : 16),
-            vertical: isVerySmall ? 2 : (isSmall ? 4 : 8),
+            horizontal: isVerySmall ? 8 : (isSmall ? 12 : 16),
+            vertical: isVerySmall ? 6 : (isSmall ? 8 : 10),
           ),
           decoration: BoxDecoration(
             gradient: isPrimary
@@ -169,8 +168,8 @@ class TopNavigationBar extends StatelessWidget {
                   )
                 : LinearGradient(
                     colors: [
-                      Colors.white.withValues(alpha: 0.1),
-                      Colors.white.withValues(alpha: 0.05),
+                      Colors.white.withOpacity(0.1),
+                      Colors.white.withOpacity(0.05),
                     ],
                   ),
             borderRadius: BorderRadius.circular(
@@ -178,14 +177,14 @@ class TopNavigationBar extends StatelessWidget {
             ),
             border: Border.all(
               color: isPrimary
-                  ? const Color(0xFF3B82F6).withValues(alpha: 0.3)
-                  : Colors.white.withValues(alpha: 0.2),
+                  ? const Color(0xFF3B82F6).withOpacity(0.3)
+                  : Colors.white.withOpacity(0.2),
               width: 1,
             ),
             boxShadow: isPrimary
                 ? [
                     BoxShadow(
-                      color: const Color(0xFF3B82F6).withValues(alpha: 0.3),
+                      color: const Color(0xFF3B82F6).withOpacity(0.3),
                       blurRadius: 4,
                       offset: const Offset(0, 1),
                     ),
@@ -198,7 +197,7 @@ class TopNavigationBar extends StatelessWidget {
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w600,
-                fontSize: isVerySmall ? 10 : (isSmall ? 12 : 14),
+                fontSize: isVerySmall ? 12 : (isSmall ? 13 : 14),
                 letterSpacing: 0.1,
               ),
               textAlign: TextAlign.center,
